@@ -1,0 +1,117 @@
+.row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--layout-card-gap);
+}
+
+.ai {
+  justify-content: flex-start;
+  flex-direction: row;
+}
+
+.user {
+  justify-content: flex-end;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--color-blue);
+  margin-bottom: 2px;
+}
+
+.avatarIcon {
+  color: var(--color-white);
+  font-size: 16px !important;
+}
+
+.bubble {
+  max-width: 85%;
+  padding: 14px var(--space-4);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body);
+}
+
+.bubbleAi {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px var(--radius-xl) var(--radius-xl) var(--radius-xl);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.bubbleUser {
+  max-width: 80%;
+  background: var(--color-primary);
+  color: var(--color-white);
+  border-radius: var(--radius-xl) 4px var(--radius-xl) var(--radius-xl);
+}
+
+.text {
+  margin: 0;
+}
+
+.typing {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 14px 18px;
+  max-width: fit-content;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-text-muted);
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+
+  30% {
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    animation: none;
+  }
+}
+
+:global(html.dark) .bubbleAi {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+  box-shadow: none;
+}
+
+:global(html.dark) .bubbleUser {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+:global(html.dark) .dot {
+  background: var(--color-text-muted);
+}

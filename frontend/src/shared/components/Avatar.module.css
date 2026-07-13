@@ -1,0 +1,58 @@
+.avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  color: var(--color-white);
+}
+
+.size48 {
+  width: 48px;
+  height: 48px;
+}
+
+.size56 {
+  width: 56px;
+  height: 56px;
+}
+
+.size72 {
+  width: 72px;
+  height: 72px;
+}
+
+.primary {
+  background: var(--color-primary);
+}
+
+.neutral {
+  background: #4a5560;
+}
+
+.gold {
+  background: linear-gradient(135deg, #8a6a2e 0%, var(--color-gold) 100%);
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.badge {
+  position: absolute;
+  left: -2px;
+  bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--color-info);
+  color: var(--color-white);
+  border: 2px solid var(--color-surface);
+}

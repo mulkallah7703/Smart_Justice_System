@@ -1,0 +1,73 @@
+.header {
+  padding: var(--space-5) var(--layout-screen-padding-h) var(--space-6);
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-3);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-white);
+  cursor: pointer;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.avatar {
+  border: 2px solid rgba(255, 255, 255, 0.35);
+}
+
+.info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.name {
+  margin: 0;
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-heading);
+  color: var(--color-white);
+}
+
+.meta {
+  margin: 0;
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-caption);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.dot {
+  margin-inline: var(--space-2);
+}
+
+.edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--color-white);
+  cursor: pointer;
+}
+
+.editIcon {
+  color: var(--color-white);
+}

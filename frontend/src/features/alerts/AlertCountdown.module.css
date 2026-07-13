@@ -1,0 +1,36 @@
+.box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-bg);
+}
+
+.icon {
+  color: var(--color-danger);
+  flex-shrink: 0;
+}
+
+.content {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.time {
+  font-size: 22px;
+  font-weight: var(--font-weight-light);
+  color: var(--color-danger);
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.label {
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-danger);
+  line-height: var(--line-height-caption);
+}

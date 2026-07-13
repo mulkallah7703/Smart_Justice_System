@@ -1,0 +1,132 @@
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+  text-align: right;
+}
+
+.detailed {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+  border-inline-start-width: 4px;
+  padding-block: var(--space-4);
+}
+
+.accentWarning {
+  border-inline-start-color: var(--color-warning);
+}
+
+.accentSuccess {
+  border-inline-start-color: var(--color-success);
+}
+
+.clickable {
+  cursor: pointer;
+  transition:
+    box-shadow var(--transition-element),
+    transform var(--transition-element);
+}
+
+.clickable:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.clickable:active {
+  transform: scale(0.99);
+}
+
+.iconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--color-blue-light);
+}
+
+.icon {
+  color: var(--color-blue);
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.detailedTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.detailedContent {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semi-bold);
+  line-height: var(--line-height-heading);
+  color: var(--color-text);
+}
+
+.number,
+.subtitle {
+  margin: 0;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-muted);
+}
+
+.badge {
+  flex-shrink: 0;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+}
+
+.footerDanger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.footerSuccess {
+  background: transparent;
+  padding-inline: 0;
+  padding-block: var(--space-1) 0;
+  color: var(--color-success);
+}
+
+.footerIcon {
+  flex-shrink: 0;
+}
+
+.footerText {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-caption);
+}

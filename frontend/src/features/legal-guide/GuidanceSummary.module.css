@@ -1,0 +1,106 @@
+.screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: 100vh;
+  background: var(--color-background);
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--layout-card-gap);
+  padding: var(--space-4) var(--layout-screen-padding-h);
+  padding-bottom: var(--space-4);
+  overflow-y: auto;
+}
+
+.resultBody {
+  margin: 0;
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body);
+  color: var(--color-text);
+  opacity: 0.9;
+}
+
+.docRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.docIconDone {
+  color: var(--color-success);
+  flex-shrink: 0;
+}
+
+.docIconPending {
+  color: var(--color-text-disabled);
+  flex-shrink: 0;
+}
+
+.docLabel {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body);
+  color: var(--color-text);
+}
+
+.stepRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.stepBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semi-bold);
+  line-height: 1;
+}
+
+.stepActive {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+.stepPending {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.stepLabel {
+  margin: 0;
+  padding-top: 4px;
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body);
+  color: var(--color-text);
+}
+
+.footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--layout-screen-padding-h);
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
+.secondaryBtn {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
+  box-shadow: none;
+}

@@ -1,0 +1,23 @@
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: 14px var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-gold-light);
+  border: 1px solid rgba(199, 162, 75, 0.35);
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--color-gold);
+  margin-top: 1px;
+}
+
+.message {
+  margin: 0;
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body);
+  color: var(--color-text);
+}

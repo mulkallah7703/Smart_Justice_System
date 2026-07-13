@@ -1,0 +1,110 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4);
+  border: 1.5px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    border-color var(--transition-element),
+    background var(--transition-element),
+    box-shadow var(--transition-element);
+}
+
+.option:hover {
+  border-color: var(--color-primary);
+}
+
+.selected {
+  border-color: var(--color-primary);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.applePayMark {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-text);
+  color: var(--color-white);
+  line-height: 1;
+}
+
+.appleGlyph {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.appleSvg {
+  width: 14px;
+  height: 17px;
+  display: block;
+}
+
+.applePayText {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.madaIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.label {
+  font-family: var(--font-arabic);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semi-bold);
+  line-height: var(--line-height-heading);
+  color: var(--color-text);
+}
+
+.radio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+
+.radioSelected {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.checkIcon {
+  color: var(--color-white);
+}

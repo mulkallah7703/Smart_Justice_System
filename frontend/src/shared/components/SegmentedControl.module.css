@@ -1,0 +1,30 @@
+.control {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  gap: 2px;
+}
+
+.option {
+  min-width: 56px;
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-arabic);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-caption);
+  cursor: pointer;
+  transition:
+    background var(--transition-element),
+    color var(--transition-element);
+}
+
+.active {
+  background: var(--color-primary);
+  color: var(--color-white);
+}

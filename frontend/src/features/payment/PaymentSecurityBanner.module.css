@@ -1,0 +1,21 @@
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-light);
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.text {
+  margin: 0;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-caption);
+  color: var(--color-primary);
+}

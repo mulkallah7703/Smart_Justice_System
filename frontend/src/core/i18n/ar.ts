@@ -1,0 +1,580 @@
+﻿export const ar = {
+  splash: {
+    title: 'المنظومة العدلية الذكية',
+    subtitle: 'رفيقك القانوني الموثوق – يرشدك، يحلّل، ويذكّرك قبل وقوع المشكلة',
+    trustBadge: 'منصة معتمدة - بيئة آمنة',
+  },
+  onboarding: {
+    skip: 'تخطي',
+    title: 'أربع خدمات مترابطة في مكانٍ واحد',
+    subtitle:
+      'من الإرشاد قبل الدعوى حتى حجز محامٍ معتمد — برفقة ذكاء يطمئنك في كل خطوة.',
+    cta: 'الدخول عبر النفاذ الوطني',
+    services: [
+      {
+        title: 'المرشد القانوني الذكي',
+        description: 'يرشدك قبل رفع الدعوى',
+      },
+      {
+        title: 'المستشار القانوني الذكي',
+        description: 'يحلل مستنداتك ويُعد تقريراً',
+      },
+      {
+        title: 'المحامون المعتمدون',
+        description: 'حجز واستشارة موثوقة',
+      },
+      {
+        title: 'البطاقة العدلية الذكية',
+        description: 'هويتك وملفك الرقمي',
+      },
+    ],
+  },
+  nafath: {
+    headerTitle: 'تسجيل الدخول',
+    title: 'التحقق عبر النفاذ الوطني',
+    description:
+      'أدخل رقم هويتك الوطنية أو الإقامة، ثم أكمل التحقق من تطبيق «نفاذ».',
+    idLabel: 'رقم الهوية / الإقامة',
+    idPlaceholder: '10.. .. .. ..',
+    idError: 'يرجى إدخال رقم هوية أو إقامة صحيح (10 أرقام)',
+    codeInstruction: 'اختر الرقم التالي في تطبيق «نفاذ»',
+    expiresIn: 'ينتهي خلال',
+    expired: 'انتهت صلاحية الرمز، أعد المحاولة',
+    securityNotice: 'بياناتك محمية وتُعالج عبر قنوات حكومية موثقة.',
+    cta: 'تأكيد ومتابعة',
+    submitting: 'جاري التحقق...',
+    verifyError: 'تعذر إتمام التحقق، يرجى المحاولة مرة أخرى',
+  },
+  success: {
+    title: 'تم إنشاء ملفك العدلي',
+    description:
+      'أُنشئ ملفك العدلي تلقائياً وجُمعت قضاياك ومواعيدك ومستنداتك في مكان واحد آمن.',
+    profile: {
+      name: 'محمد بن عبدالله العتيبي',
+      cardLabel: 'بطاقة عدلية',
+      tierLabel: 'فئة فضية',
+    },
+    stats: {
+      cases: 2,
+      casesLabel: 'قضايا',
+      appointments: 3,
+      appointmentsLabel: 'مواعيد',
+      documents: 8,
+      documentsLabel: 'مستندات',
+    },
+    cta: 'الدخول إلى الرئيسية',
+  },
+  home: {
+    screenTitle: 'الرئيسية',
+    greeting: 'مساء الخير،',
+    userName: 'محمد العتيبي',
+    notificationsAria: 'الإشعارات',
+    profileAria: 'الملف الشخصي',
+    card: {
+      title: 'البطاقة العدلية الذكية',
+      fileNumberLabel: 'رقم الملف العدلي',
+      discountLabel: 'خصم الاستشارات',
+      number: 'JC-1446-0827',
+      tierLabel: 'فضية',
+      discountPct: 30,
+    },
+    alert: {
+      title: 'تنبيه استباقي • مهلة اعتراض',
+      subtitle: 'تبقى يومان – صحح الآن قبل الفوات',
+    },
+    services: [
+      {
+        title: 'المرشد الذكي',
+        description: 'قبل رفع الدعوى',
+        icon: 'explore',
+      },
+      {
+        title: 'المستشار الذكي',
+        description: 'تحليل المستندات',
+        icon: 'auto_awesome',
+      },
+      {
+        title: 'المحامون',
+        description: 'حجز واستشارة',
+        icon: 'groups',
+      },
+      {
+        title: 'بطاقتي',
+        description: 'الملف الرقمي',
+        icon: 'credit_card',
+      },
+    ],
+    cases: {
+      title: 'قضاياي النشطة',
+      viewAll: 'عرض الكل',
+      sample: {
+        title: 'نزاع إيجاري – تأخر سداد',
+        number: 'رقم 8201-1446',
+        status: 'بانتظار جلسة',
+      },
+    },
+    nav: {
+      ariaLabel: 'التنقل الرئيسي',
+      home: 'الرئيسية',
+      guide: 'المرشد',
+      advisor: 'المستشار',
+      lawyers: 'المحامون',
+      card: 'بطاقتي',
+    },
+  },
+  alerts: {
+    title: 'التنبيهات الاستباقية',
+    filtersAria: 'تصفية التنبيهات',
+    countdownRemaining: 'متبقية',
+    footerNote: 'يعمل «الذكاء الاستباقي» على مراقبة مهلك ومستنداتك آلياً.',
+    filters: {
+      all: 'الكل',
+      urgent: 'عاجل',
+      warning: 'مهل',
+      info: 'أنظمة',
+    },
+    severity: {
+      urgent: 'عاجل',
+      important: 'مهم',
+    },
+    actions: {
+      correctNow: 'صحح الآن',
+      attachDocument: 'إرفاق المستند',
+      viewDetails: 'عرض التفاصيل',
+    },
+    items: {
+      deadline: {
+        title: 'قرب انتهاء مهلة الاعتراض',
+        body: 'تبقى يومان لرفع الاعتراض في قضية «نزاع إيجاري – تأخر سداد». لا تفوّت المهلة.',
+      },
+      missingDoc: {
+        title: 'مستند ناقص قبل الجلسة',
+        body: 'يجب إرفاق صك الملكية في الملف قبل موعد الجلسة بـ 3 أيام.',
+      },
+      lawUpdate: {
+        title: 'تحديث نظامي يخص قضيتك',
+        body: 'صدر تعديل في نظام المعاملات المدنية قد يؤثر على قضيتك. اطّلع على أثره المحتمل.',
+      },
+      hearing: {
+        title: 'تذكير بموعد الجلسة',
+        body: 'جلسة قضيتك «نزاع إيجاري» بعد يومين. تأكد من حضورك أو مندوبك.',
+      },
+      payment: {
+        title: 'مهلة سداد رسوم قضائية',
+        body: 'تبقى 7 أيام لسداد رسوم القضية قبل تعليق الإجراءات.',
+      },
+    },
+  },
+  guide: {
+    title: 'المرشد القانوني الذكي',
+    subtitle: 'يرشدك خطوة بخطوة',
+    disclaimer: 'إرشاد استرشادي - لا يُعد حكماً قضائياً',
+    placeholder: 'اكتب رسالتك...',
+    sendAria: 'إرسال الرسالة',
+    micAria: 'تسجيل صوتي',
+    errorReply: 'حدث خطأ، حاول مرة أخرى.',
+    messages: {
+      welcome:
+        'أهلاً محمد. صف لي مشكلتك بكلماتك البسيطة ولا تقلق - سأرشدك خطوة بخطوة.',
+      userSample: 'المستأجر تأخر عن دفع الإيجار ٣ أشهر.',
+      aiFollowUp:
+        'أفهم انشغالك، وهذا حقك. سأسألك سؤالين قصيرين لأحدد مسارك.',
+    },
+    replies: {
+      afterUser:
+        'حسناً، سأجمع بعض التفاصيل. ما نوع العقد المبرم مع المستأجر؟',
+    },
+    quickReplies: {
+      documented: 'عقد موثق',
+      notDocumented: 'عقد غير موثق',
+    },
+    question: {
+      title: 'سؤال توضيحي',
+      stepLabel: '{current} من {total}',
+      hint: '...لتحديد الجهة المختصة بدقة',
+      prompt: 'هل يوجد عقد إيجار موثّق في منصة «إيجار»؟',
+      tip: '«التوثيق» يعني تسجيل العقد رسمياً في منصة إيجار، ويمنحك مساراً أسرع للتنفيذ.',
+      next: 'التالي',
+      options: {
+        documented: 'نعم، العقد موثّق',
+        notDocumented: 'لا، العقد غير موثّق',
+        noContract: 'لا يوجد عقد مكتوب',
+        unsure: 'لست متأكداً',
+      },
+    },
+    summary: {
+      title: 'خلاصة إرشادك',
+      resultTitle: 'بناءً على إجاباتك',
+      resultBody:
+        'قضيتك ضمن النزاعات الإيجارية، ولديك مسار واضح للمطالبة بالإخلاء والمستحقات.',
+      caseTypeLabel: 'نوع القضية',
+      caseTypeValue: 'نزاع إيجاري — تأخر سداد وإخلاء',
+      authorityLabel: 'الجهة المختصة',
+      authorityValue: 'لجنة المنازعات الإيجارية',
+      durationLabel: 'المدة النظامية للنظر',
+      durationValue: 'حتى 60 يوماً من القيد',
+      durationDays: 60,
+      durationUnit: 'يوماً',
+      docsTitle: 'المستندات المطلوبة',
+      docs: {
+        lease: 'عقد الإيجار الموثق',
+        demand: 'إثبات المطالبة بالسداد',
+        receipts: 'كشف حساب / إيصالات',
+      },
+      stepsTitle: 'خطوات الإجراء',
+      steps: {
+        prepare: 'جهّز المستندات أعلاه ووثقها رقمياً.',
+        submit: 'قدّم الدعوى عبر بوابة وزارة العدل.',
+      },
+      saveToFile: 'حفظ في ملفي',
+      consultLawyer: 'استشارة محامٍ',
+    },
+  },
+  advisor: {
+    upload: {
+      headerTitle: 'المستشار القانوني الذكي',
+      title: 'ارفع مستنداتك ليحللها المستشار الذكي',
+      subtitle:
+        'عقود، صكوك، مطالبات أو أحكام — وسيُعدّ لك تقريراً استرشادياً واضحاً.',
+      zoneTitle: 'اسحب الملفات أو اضغط للرفع',
+      zoneHint: 'PDF • صور • DOCX — حتى ٢٠ م.ب',
+      filesBtn: 'الملفات',
+      cameraBtn: 'تصوير',
+      attachedLabel: 'الملفات المرفقة ({count})',
+      doneLabel: 'مكتمل',
+      analyzeCta: 'تحليل المستندات',
+      mock: {
+        pdfName: 'عقد_الإيجار.pdf',
+        imageName: 'إيصالات_السداد.jpg',
+      },
+    },
+    analyzing: {
+      headerTitle: 'جارٍ التحليل',
+      title: 'جارٍ تحليل مستنداتك...',
+      subtitle:
+        'يقرأ المستشار الذكي بنود عقدك ويقارنها بالأنظمة المحدثة.',
+      footer: 'تُعالج بياناتك بسرعة تامة',
+      steps: {
+        extract: 'استخراج البنود والأطراف',
+        match: 'مطابقة الأنظمة ذات الصلة',
+        report: 'تحرير التقرير الاسترشادي',
+      },
+    },
+    opinion: {
+      headerTitle: 'الرأي الأولي',
+      summaryTitle: 'خلاصة التحليل',
+      summaryBody:
+        'العقد سليم من حيث الأركان، والمستأجر متأخر عن السداد. بناءً على ذلك فإن موقفك الاسترشادي قوي للمطالبة.',
+      strengthLabel: 'قوة الموقف الاسترشادي',
+      strengthValue: 'قوي',
+      findingsTitle: 'أبرز الملاحظات',
+      findings: {
+        documented: {
+          title: 'العقد موثق في «إيجار»',
+          subtitle: 'يمنحك مساراً أسرع للتنفيذ',
+        },
+        penalty: {
+          title: 'بند الغرامة غير واضح',
+          subtitle: 'قد يحتاج توضيحاً عند المطالبة',
+        },
+        demand: {
+          title: 'إثبات المطالبة الودية',
+          subtitle: 'يقوي قضيتك أمام اللجنة',
+        },
+      },
+      disclaimer:
+        'هذا رأي استرشادي لمساعدتك على الفهم، والقرار النهائي للقاضي حصراً',
+      cta: 'عرض التقرير الاسترشادي الكامل',
+    },
+    report: {
+      headerTitle: 'التقرير الاسترشادي',
+      brandTitle: 'المنظومة العدلية الذكية',
+      brandSubtitle: 'تقرير استرشادي — تحليل آلي',
+      reference: 'AR-1446-0827',
+      dateHijri: '١٤٤٦/٠٨/٢٧هـ',
+      watermark: 'استرشادي',
+      shareAria: 'مشاركة التقرير',
+      downloadAria: 'تنزيل التقرير',
+      saveToFile: 'حفظ في ملفي',
+      downloadPdf: 'تنزيل PDF',
+      disclaimer:
+        'هذا التقرير لأغراض الاسترشاد والفهم فقط، ولا يُعدّ حكماً قضائياً أو فتوى رسمية.',
+      sections: {
+        subject: {
+          title: 'أولاً: موضوع النزاع',
+          body: 'يتعلق النزاع بعقد إيجار سكني تأخّر فيه المستأجر عن سداد الأجرة لمدة تجاوزت ثلاثة أشهر، مع امتناع عن الرد على المطالبات، مما يفتح باب المطالبة بالإخلاء والمستحقات وفق المسار النظامي المتاح.',
+        },
+        basis: {
+          title: 'ثانياً: الأساس النظامي',
+          body: 'استند التحليل إلى أحكام أنظمة الإيجار ذات الصلة، وشروط التوثيق في منصة «إيجار»، والضوابط المنظمة للمطالبات والإخلاء عند الإخلال بالالتزامات التعاقدية.',
+        },
+        opinion: {
+          title: 'ثالثاً: الرأي الاسترشادي',
+          body: 'يظهر أن موقف المطالب الاسترشادي قوي نسبياً متى ثبت التوثيق والمطالبة الودية، مع أهمية استكمال المستندات الناقصة قبل رفع الدعوى عبر الجهة المختصة.',
+        },
+      },
+    },
+  },
+  lawyers: {
+    title: 'المحامون المعتمدون',
+    searchPlaceholder: 'ابحث بالاسم أو التخصص...',
+    filterAria: 'تصفية إضافية',
+    filtersAria: 'تصفية حسب التخصص',
+    book: 'احجز',
+    priceFrom: 'الاستشارة من',
+    currency: 'ر.س',
+    reviews: 'تقييم',
+    experienceYears: 'سنة خبرة',
+    filters: {
+      rental: 'عقاري',
+      personal: 'أحوال شخصية',
+      commercial: 'تجاري',
+      labor: 'عمالي',
+    },
+    availability: {
+      now: 'متاحة الآن',
+      withinHour: 'خلال ساعة',
+    },
+    mock: {
+      sarah: {
+        name: 'أ. سارة المطيري',
+        title: 'محامية • قانون عقاري',
+      },
+      khalid: {
+        name: 'أ. خالد الزهراني',
+        title: 'محامٍ • أحوال شخصية وعقاري',
+      },
+      noura: {
+        name: 'أ. نورة القحطاني',
+        title: 'محامية • قانون تجاري',
+      },
+    },
+    profile: {
+      headerTitle: 'ملف المحامية',
+      bioTitle: 'نبذة',
+      expertiseTitle: 'مجالات التميز',
+      reviewsLabel: 'تقييم',
+      cta: 'اختيار نوع الاستشارة',
+      fallbackBio:
+        'محامٍ معتمد بخبرة واسعة في تقديم الاستشارات والتمثيل القانوني.',
+      statsLabels: {
+        experience: 'سنة خبرة',
+        cases: 'قضية',
+        satisfaction: 'رضا',
+      },
+      discount: {
+        title: 'خصم بطاقتك الفضية: ٢٠٪',
+        subtitle: 'يُطبق تلقائياً عند الحجز',
+      },
+      sarah: {
+        licensedTitle: 'محامية مرخصة - قانون عقاري',
+        bio: 'خبرة ممتدة في النزاعات الإيجارية والعقارية، وصياغة العقود، ومتابعة إجراءات الإخلاء والمستحقات أمام اللجان المختصة.',
+        tags: ['نزاعات إيجارية', 'صياغة عقود', 'إخلاء عقاري'],
+        stats: {
+          experience: '١٢',
+          cases: '+٣٢٠',
+          satisfaction: '٩٤٪',
+        },
+      },
+    },
+  },
+  booking: {
+    headerTitle: 'نوع الاستشارة',
+    scheduleTitle: 'اختر الموعد',
+    scheduleHint: 'الأوقات المعروضة حسب توقيت المحامي المحلي',
+    totalAfterDiscount: 'الإجمالي بعد الخصم',
+    currency: 'ر.س',
+    cta: 'متابعة الدفع',
+    submitting: 'جارٍ التأكيد...',
+    types: {
+      instant: {
+        title: 'استشارة فورية',
+        subtitle: 'مكالمة مباشرة خلال دقائق',
+      },
+      written: {
+        title: 'استشارة مكتوبة',
+        subtitle: 'رد كتابي خلال ٢٤ ساعة',
+      },
+      inPerson: {
+        title: 'استشارة حضورية',
+        subtitle: 'لقاء في مكتب المحامي',
+      },
+      representation: {
+        title: 'تمثيل قضائي',
+        subtitle: 'تمثيل قانوني كامل أمام الجهات',
+      },
+    },
+    dates: {
+      sun: 'الأحد',
+      mon: 'الإثنين',
+      tue: 'الثلاثاء',
+      wed: 'الأربعاء',
+    },
+    times: {
+      t1100: '١١:٠٠ ص',
+      t1330: '٠١:٣٠ م',
+      t1600: '٠٤:٠٠ م',
+    },
+  },
+  payment: {
+    headerTitle: 'الدفع الآمن',
+    methodsTitle: 'طريقة الدفع',
+    currency: 'ر.س',
+    cta: 'ادفع',
+    paying: 'جارٍ الدفع...',
+    securityNote:
+      'عملية دفع مشفرة عبر بوابة معتمدة — لا نحتفظ ببيانات بطاقتك.',
+    methods: {
+      applePay: 'Apple Pay',
+      mada: 'مدى • بطاقة بنكية',
+    },
+    summary: {
+      title: 'ملخص الحجز',
+      serviceInstant: 'استشارة فورية',
+      scheduleSample: 'الإثنين ٢٩ • ١:٣٠ م',
+      consultationValue: 'قيمة الاستشارة',
+      discountLabel: 'خصم البطاقة الفضية ٢٥٪',
+      total: 'الإجمالي',
+    },
+  },
+  judicialCard: {
+    headerTitle: 'بطاقتي العدلية',
+    brandName: 'المنظومة العدلية',
+    fileNumberLabel: 'رقم الملف العدلي',
+    holderLabel: 'حامل البطاقة',
+    flipHint: 'اضغط البطاقة لعرض QR وتفاصيل الهوية',
+    flipAria: 'قلب البطاقة لعرض رمز QR',
+    actionsAria: 'إجراءات البطاقة',
+    actions: {
+      showIdentity: 'عرض الهوية',
+      addToWallet: 'أضف للمحفظة',
+      upgrade: 'ترقية',
+    },
+    mock: {
+      cardNumber: 'JC-1446-0827',
+      holderName: 'محمد عبدالله العتيبي',
+      nationalId: '١٠******٧٢',
+      tierLabel: 'فضية',
+      qrPayload: 'JC-1446-0827|SILVER|NATIONAL-ID',
+    },
+    upgrade: {
+      headerTitle: 'ترقية البطاقة',
+      subtitle:
+        'اختر الفئة التي تناسبك — كلما ارتفعت الفئة زاد خصم الاستشارات والمزايا.',
+      currentBadge: 'فئتك الحالية',
+      ctaGold: 'الترقية إلى الذهبية',
+      ctaSilver: 'الترقية إلى الفضية',
+      ctaNormal: 'الفئة العادية',
+      submitting: 'جارٍ الترقية...',
+      tiers: {
+        gold: {
+          title: 'الفئة الذهبية',
+          description: 'خصم ٤٠٪ على كل الاستشارات + أولوية الحجز',
+          price: '٤٩ ر.س / شهرياً',
+          badge: 'الأكثر مزايا',
+        },
+        silver: {
+          title: 'الفئة الفضية',
+          description: 'خصم ٢٥٪ على الاستشارات',
+          price: '١٩ ر.س / شهرياً',
+        },
+        normal: {
+          title: 'الفئة العادية',
+          description: 'دون خصم — الوصول الأساسي للخدمات',
+          price: 'مجاناً',
+        },
+      },
+    },
+  },
+  legalFile: {
+    headerTitle: 'ملفي العدلي',
+    tabsAria: 'أقسام الملف العدلي',
+    addCase: 'إضافة قضية أو متابعة جديدة',
+    tabs: {
+      cases: 'القضايا',
+      appointments: 'المواعيد',
+      documents: 'المستندات',
+      notifications: 'الإشعارات',
+    },
+    cases: {
+      rental: {
+        title: 'نزاع إيجاري – تأخر سداد',
+        subtitle: 'رقم القضية ٣٢٠١-١٤٤٦ • لجنة المنازعات الإيجارية',
+        status: 'بانتظار جلسة',
+        footer: 'مهلة اعتراض تنتهي خلال يومين',
+      },
+      commercial: {
+        title: 'مطالبة مالية – مقاول',
+        subtitle: 'رقم القضية ٩٩٢٠-١٤٤٥ • المحكمة التجارية',
+        status: 'صدر حكم',
+        footer: 'حُسمت لصالحك • بإمكانك تنفيذ الحكم',
+      },
+    },
+    empty: {
+      appointments: {
+        title: 'لا مواعيد قادمة',
+        body: 'ستظهر هنا جلساتك ومواعيد المتابعة عند جدولتها.',
+      },
+      documents: {
+        title: 'لا مستندات بعد',
+        body: 'ارفع مستندات قضاياك ليظهر أرشيفك هنا.',
+      },
+      notifications: {
+        title: 'لا إشعارات',
+        body: 'ستظهر تنبيهات ملفك العدلي في هذا القسم.',
+      },
+    },
+  },
+  kiosk: {
+    brandTitle: 'المنظومة العدلية الذكية',
+    brandSubtitle: 'جهاز الخدمة الذاتية',
+    welcomeTitle: 'أهلاً بك',
+    welcomeBody:
+      'امسح رمز هويتك أو مرّر بطاقتك العدلية لاستدعاء ملفك فوراً',
+    servicesTitle: 'الخدمات السريعة',
+    syncLabel: 'مزامنة فورية مع جوالك',
+    actions: {
+      scanQr: 'مسح رمز QR',
+      tapCard: 'تمرير البطاقة',
+    },
+    services: {
+      retrieve: 'استدعاء ملفي العدلي',
+      print: 'طباعة مستند',
+      upload: 'رفع مستند للملف',
+    },
+  },
+  profile: {
+    editAria: 'تعديل الملف الشخصي',
+    backAria: 'العودة',
+    sections: {
+      languageDisplay: 'اللغة والعرض',
+      accessibility: 'إمكانية الوصول',
+      securityNotifications: 'الأمان والإشعارات',
+    },
+    fields: {
+      language: 'اللغة',
+      calendar: 'التقويم',
+      numerals: 'الأرقام',
+      largeFont: 'حجم الخط الكبير',
+      highContrast: 'وضع التباين العالي',
+      darkMode: 'الوضع الداكن',
+      proactiveAlerts: 'التنبيهات الاستباقية',
+      biometric: 'الدخول بالبصمة',
+    },
+    values: {
+      arabic: 'العربية',
+      english: 'English',
+      hijri: 'هجري',
+      gregorian: 'ميلادي',
+      numeralsArabic: '١٢٣',
+      numeralsWestern: '012',
+    },
+    mock: {
+      name: 'محمد العتيبي',
+      cardLabel: 'بطاقة فضية',
+      cardNumber: 'JC-1446-0827',
+    },
+  },
+} as const;
+
+export type ArStrings = typeof ar;

@@ -1,0 +1,74 @@
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-dark-border);
+  background: var(--color-dark-surface);
+}
+
+.done {
+  border-color: rgba(47, 111, 176, 0.35);
+  box-shadow: 0 0 0 1px rgba(47, 111, 176, 0.12);
+}
+
+.active {
+  border-color: rgba(47, 111, 176, 0.25);
+}
+
+.pending {
+  opacity: 0.55;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+}
+
+.check {
+  color: var(--color-success);
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  border: 2px solid rgba(47, 111, 176, 0.25);
+  border-top-color: var(--color-blue);
+  animation: analyzingSpin 0.9s linear infinite;
+}
+
+.pendingIcon {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  border: 2px solid rgba(234, 240, 237, 0.28);
+}
+
+.label {
+  margin: 0;
+  flex: 1;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+  color: var(--color-dark-text);
+  text-align: right;
+}
+
+@keyframes analyzingSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

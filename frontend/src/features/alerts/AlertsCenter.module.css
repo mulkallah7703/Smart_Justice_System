@@ -1,0 +1,32 @@
+.screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: 100vh;
+  background: var(--color-background);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-section-gap);
+  padding: var(--space-4) var(--layout-screen-padding-h);
+  padding-bottom: var(--layout-content-padding-bottom);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-card-gap);
+}
+
+.footer {
+  margin: 0;
+  padding: var(--space-2) 0 var(--space-4);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body);
+  color: var(--color-text-disabled);
+  text-align: center;
+}

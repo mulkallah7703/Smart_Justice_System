@@ -1,0 +1,60 @@
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: 14px var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-body-sm);
+  line-height: var(--line-height-body);
+}
+
+.icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.message {
+  margin: 0;
+}
+
+.success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border: 1px solid rgba(27, 135, 63, 0.2);
+}
+
+.warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  border: 1px solid rgba(217, 138, 11, 0.2);
+}
+
+.danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border: 1px solid rgba(200, 55, 46, 0.2);
+}
+
+.info {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+  border: 1px solid rgba(47, 111, 176, 0.2);
+}
+
+.neutral {
+  background: var(--color-background);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.neutral .icon {
+  color: var(--color-info);
+}

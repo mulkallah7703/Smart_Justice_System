@@ -1,0 +1,33 @@
+.grid {
+  display: flex;
+  align-items: stretch;
+}
+
+.divider {
+  flex-shrink: 0;
+}
+
+.stat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-1);
+  text-align: center;
+}
+
+.value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-display);
+  color: var(--color-primary);
+}
+
+.label {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-muted);
+}

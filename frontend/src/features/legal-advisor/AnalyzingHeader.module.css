@@ -1,0 +1,37 @@
+.header {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 56px;
+  padding: var(--space-2) var(--layout-screen-padding-h);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-dark-text);
+  cursor: pointer;
+}
+
+.backIcon {
+  color: var(--color-dark-text);
+  transform: scaleX(-1);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-semi-bold);
+  line-height: var(--line-height-heading);
+  color: var(--color-dark-text);
+  text-align: center;
+}

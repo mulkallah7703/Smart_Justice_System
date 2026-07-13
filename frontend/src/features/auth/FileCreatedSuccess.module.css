@@ -1,0 +1,36 @@
+.screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: 100vh;
+  background: var(--color-background);
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-10) var(--layout-screen-padding-h) var(--space-6);
+  overflow-y: auto;
+}
+
+.footer {
+  padding: var(--space-4) var(--layout-screen-padding-h)
+    calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  background: var(--color-background);
+}
+
+.ctaDelay {
+  animation-delay: 1100ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen,
+  .ctaDelay {
+    animation: none;
+    opacity: 1;
+  }
+}

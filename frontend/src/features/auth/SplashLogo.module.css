@@ -1,0 +1,42 @@
+.wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--splash-logo-size);
+  height: var(--splash-logo-size);
+}
+
+.ring {
+  position: absolute;
+  inset: calc(var(--space-2) * -1);
+  border-radius: var(--radius-full);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--splash-logo-size);
+  height: var(--splash-logo-size);
+  background: var(--color-white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-logo);
+  animation-delay: 0ms;
+}
+
+.icon {
+  width: 48px;
+  height: 48px;
+  color: var(--color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring {
+    animation: none;
+    opacity: 0.35;
+  }
+}

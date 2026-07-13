@@ -1,0 +1,113 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    border-color var(--transition-element),
+    background var(--transition-element),
+    box-shadow var(--transition-element);
+}
+
+.card:hover {
+  border-color: var(--color-primary);
+}
+
+.selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  box-shadow: var(--shadow-xs);
+}
+
+.iconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+
+.iconPrimary {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.selected .iconPrimary {
+  background: rgba(14, 90, 74, 0.14);
+}
+
+.iconBlue {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.iconWarm {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.iconGold {
+  background: var(--color-gold-light);
+  color: var(--color-gold);
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  font-family: var(--font-arabic);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semi-bold);
+  line-height: var(--line-height-heading);
+  color: var(--color-text);
+}
+
+.subtitle {
+  font-family: var(--font-arabic);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-muted);
+}
+
+.radio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+
+.radioSelected {
+  border-color: var(--color-primary);
+}
+
+.radioDot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+}

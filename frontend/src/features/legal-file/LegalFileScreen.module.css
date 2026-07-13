@@ -1,0 +1,33 @@
+.screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: 100vh;
+  background: var(--color-background);
+}
+
+.header {
+  padding: var(--space-5) var(--layout-screen-padding-h) var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-heading);
+  color: var(--color-text);
+  text-align: start;
+}
+
+.tabs {
+  padding: 0 var(--layout-screen-padding-h) var(--space-4);
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  padding: 0 var(--layout-screen-padding-h);
+  padding-bottom: var(--layout-content-padding-bottom);
+  overflow-y: auto;
+}

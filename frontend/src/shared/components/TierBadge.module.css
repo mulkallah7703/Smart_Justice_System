@@ -1,0 +1,25 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-micro);
+  font-weight: var(--font-weight-semi-bold);
+  line-height: var(--line-height-micro);
+  white-space: nowrap;
+}
+
+.normal {
+  background: rgba(107, 116, 111, 0.15);
+  color: var(--color-text-muted);
+}
+
+.silver {
+  background: linear-gradient(135deg, #c0c0c0, #e8e8e8);
+  color: #4a4a4a;
+}
+
+.gold {
+  background: linear-gradient(135deg, var(--color-gold), #e8c97a);
+  color: var(--color-white);
+}

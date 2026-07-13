@@ -1,0 +1,35 @@
+.switch {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 28px;
+  padding: 3px;
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background var(--transition-element);
+}
+
+.switch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.on {
+  justify-content: flex-start;
+  background: var(--color-primary);
+}
+
+.off {
+  justify-content: flex-end;
+  background: var(--color-border);
+}
+
+.thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  box-shadow: var(--shadow-xs);
+}

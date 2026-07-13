@@ -1,0 +1,118 @@
+.header {
+  position: relative;
+  z-index: 1;
+  padding: var(--space-4) var(--layout-screen-padding-h) var(--space-16);
+  border-radius: 0 0 var(--radius-2xl) var(--radius-2xl);
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+.screenTitle {
+  margin: 0 0 var(--space-5);
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-semi-bold);
+  line-height: var(--line-height-heading);
+  text-align: center;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.greetingBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.greeting {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.userName {
+  margin: 0;
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-display);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.actionButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: background var(--transition-element);
+}
+
+.actionButton:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.actionIcon {
+  color: var(--color-white);
+}
+
+.notificationDot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border-color: var(--color-primary);
+}
+
+:global(html.dark) .header {
+  background: var(--color-background);
+  color: var(--color-text);
+  border-radius: 0;
+  padding-bottom: var(--space-4);
+}
+
+:global(html.dark) .screenTitle {
+  color: var(--color-text-muted);
+}
+
+:global(html.dark) .greeting {
+  color: var(--color-text-muted);
+}
+
+:global(html.dark) .userName {
+  color: var(--color-text);
+}
+
+:global(html.dark) .actionButton {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+:global(html.dark) .actionButton:hover {
+  background: var(--color-dark-surface);
+}
+
+:global(html.dark) .actionIcon {
+  color: var(--color-text);
+}
+
+:global(html.dark) .notificationDot {
+  border-color: var(--color-background);
+}

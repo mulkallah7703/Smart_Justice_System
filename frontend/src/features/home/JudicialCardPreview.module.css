@@ -1,0 +1,103 @@
+.card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  overflow: hidden;
+  width: 100%;
+  padding: var(--space-5);
+  border: 1px solid rgba(199, 162, 75, 0.2);
+  border-radius: var(--radius-card);
+  background: linear-gradient(145deg, #2a3330 0%, #1c2623 46%, #121917 100%);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-white);
+  text-align: right;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.11) 0%, transparent 68%);
+  pointer-events: none;
+  transform: translate(-35%, -50%);
+}
+
+.topRow,
+.details {
+  position: relative;
+  z-index: 1;
+}
+
+.clickable {
+  margin: 0;
+  border: none;
+  cursor: pointer;
+  transition: transform var(--transition-element);
+}
+
+.clickable:hover {
+  transform: translateY(-1px);
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.titleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.titleIcon {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cardTitle {
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-body);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.details {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+
+.detailBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.detailLabel {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-caption);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.fileNumber {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-display);
+  letter-spacing: 0.04em;
+}
+
+.discount {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-display);
+  color: var(--color-gold);
+}

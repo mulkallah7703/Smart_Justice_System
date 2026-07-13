@@ -1,0 +1,30 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring {
+  position: absolute;
+  inset: -6px;
+  border: 2px solid rgba(200, 55, 46, 0.4);
+  border-radius: var(--radius-full);
+  animation: ringPulse 1500ms ease-out infinite;
+  pointer-events: none;
+}
+
+.time {
+  font-size: 28px;
+  font-weight: var(--font-weight-light);
+  color: var(--color-danger);
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring {
+    animation: none;
+  }
+}

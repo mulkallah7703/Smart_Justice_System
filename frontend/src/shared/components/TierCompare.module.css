@@ -1,0 +1,131 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-4);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    border-color var(--transition-element),
+    background var(--transition-element),
+    box-shadow var(--transition-element);
+}
+
+.card:hover {
+  border-color: var(--color-gold);
+}
+
+.selected {
+  border-color: var(--color-gold);
+  box-shadow: var(--shadow-xs);
+}
+
+.selectedGold {
+  border-color: var(--color-gold);
+  background: var(--color-gold-light);
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.titleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.iconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+}
+
+.iconGold {
+  background: linear-gradient(
+    145deg,
+    #e8c97a 0%,
+    var(--color-gold) 55%,
+    #9a7a35 100%
+  );
+  color: var(--color-white);
+}
+
+.iconSilver {
+  background: linear-gradient(145deg, #e8e8e8 0%, #c0c0c0 100%);
+  color: var(--color-text);
+}
+
+.iconNormal {
+  background: var(--color-background);
+  color: var(--color-text-muted);
+}
+
+.title {
+  font-family: var(--font-arabic);
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-semi-bold);
+  line-height: var(--line-height-heading);
+  color: var(--color-text);
+}
+
+.titleGold {
+  color: var(--color-gold);
+}
+
+.badge {
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-arabic);
+  font-size: var(--font-size-micro);
+  font-weight: var(--font-weight-semi-bold);
+  line-height: var(--line-height-micro);
+  white-space: nowrap;
+}
+
+.badgeFeatured {
+  background: var(--color-gold);
+  color: var(--color-white);
+}
+
+.badgeCurrent {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.description {
+  margin: 0;
+  padding-inline-start: calc(40px + var(--space-3));
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body);
+  color: var(--color-text-muted);
+}
+
+.price {
+  margin: 0;
+  padding-inline-start: calc(40px + var(--space-3));
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-heading);
+  color: var(--color-text);
+}

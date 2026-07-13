@@ -1,0 +1,5 @@
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: var(--layout-content-padding-bottom);
+}

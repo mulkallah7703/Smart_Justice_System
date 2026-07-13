@@ -1,0 +1,40 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+.slot {
+  padding: var(--space-3) var(--space-2);
+  border: 1.5px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-arabic);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-caption);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background var(--transition-element),
+    border-color var(--transition-element),
+    color var(--transition-element);
+}
+
+.slot:hover:not(:disabled) {
+  border-color: var(--color-primary);
+}
+
+.selected {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+.unavailable {
+  background: var(--color-background);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+  text-decoration: line-through;
+}

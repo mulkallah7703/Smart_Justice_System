@@ -1,0 +1,1 @@
+const a=["٠","١","٢","٣","٤","٥","٦","٧","٨","٩"],n=t=>String(t).replace(/[0-9]/g,o=>a[Number(o)]),e=(t,o=2)=>n(t.toFixed(o)),c=t=>{const o=Math.floor(t/60),r=t%60,s=String(r).padStart(2,"0");return`${n(o)}:${n(s)}`};export{e as a,c as f,n as t};

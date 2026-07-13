@@ -1,0 +1,32 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: 100vh;
+  width: 100%;
+  font-family: var(--font-arabic);
+  direction: rtl;
+}
+
+.default {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.primary {
+  background: linear-gradient(
+    180deg,
+    var(--color-primary) 0%,
+    var(--color-primary-dark) 100%
+  );
+  color: var(--color-white);
+}
+
+.dark {
+  background: var(--color-dark-bg);
+  color: var(--color-dark-text);
+}
+
+.noNav {
+  padding-bottom: 0;
+}

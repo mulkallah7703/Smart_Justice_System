@@ -1,0 +1,122 @@
+.composer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--layout-screen-padding-h);
+  padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
+.field {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  padding: 0 var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-arabic);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  outline: none;
+}
+
+.field::placeholder {
+  color: var(--color-text-disabled);
+}
+
+.field:focus {
+  border-color: var(--color-primary);
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: opacity var(--transition-element);
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-white);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition:
+    opacity var(--transition-element),
+    transform var(--transition-element);
+}
+
+.send:active:not(:disabled) {
+  opacity: 0.9;
+  transform: scale(0.98);
+}
+
+.send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sendIcon {
+  color: var(--color-white);
+  transform: scaleX(-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .send:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+:global(html.dark) .composer {
+  background: var(--color-background);
+  border-top-color: var(--color-border);
+}
+
+:global(html.dark) .field {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+:global(html.dark) .field::placeholder {
+  color: var(--color-text-disabled);
+}
+
+:global(html.dark) .iconButton {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+:global(html.dark) .send {
+  background: var(--color-primary);
+  color: var(--color-white);
+  box-shadow: none;
+}

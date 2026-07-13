@@ -1,0 +1,18 @@
+.screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: 100vh;
+  background: var(--color-background);
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--layout-section-gap);
+  padding: var(--space-5) var(--layout-screen-padding-h);
+  padding-bottom: calc(var(--space-8) + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+}

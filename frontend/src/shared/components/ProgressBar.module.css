@@ -1,0 +1,39 @@
+.track {
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+}
+
+.default {
+  height: 6px;
+  background: var(--color-border);
+}
+
+.default .fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), #1a7a62);
+  border-radius: var(--radius-pill);
+}
+
+.splash {
+  height: var(--splash-progress-height);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+}
+
+.splashFill {
+  background: var(--color-gold);
+  width: 0%;
+  animation: splashProgressFill var(--splash-progress-duration) ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splashFill {
+    animation: none;
+    width: 100%;
+  }
+}
