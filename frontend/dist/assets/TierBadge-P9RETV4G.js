@@ -1,1 +1,0 @@
-import{j as r}from"./index-i5Aobj8i.js";const n="_badge_11ha4_1",l="_normal_11ha4_12",t="_silver_11ha4_17",_="_gold_11ha4_22",s={badge:n,normal:l,silver:t,gold:_},c=({label:a,variant:o="normal",className:e=""})=>r.jsx("span",{className:`${s.badge} ${s[o]} ${e}`,children:a});export{c as T};

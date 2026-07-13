@@ -1,1 +1,0 @@
-import{j as t}from"./index-i5Aobj8i.js";import{I as c}from"./Icon-BUmNzvp8.js";const r="_button_ozhzh_1",e="_icon_ozhzh_21",o={button:r,icon:e},b=({onClick:n,ariaLabel:s="العودة للخلف",className:a=""})=>t.jsx("button",{type:"button",className:`${o.button} ${a}`,onClick:n,"aria-label":s,children:t.jsx(c,{name:"arrow_back",size:24,className:o.icon})});export{b as B};

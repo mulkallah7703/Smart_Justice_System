@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+build/
+.next/
+out/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Logs & caches
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Editor
+.idea/
+.vscode/
+*.swp
