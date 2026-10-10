@@ -10,6 +10,8 @@
 import { argon2id, hash } from 'argon2';
 import { PrismaClient } from '@prisma/client';
 
+import { assertDevelopmentSeed } from '../src/shared/seed/assert-development-seed';
+
 const prisma = new PrismaClient();
 
 const DEV_NATIONAL_ID_CITIZEN = '1999999991';
@@ -24,6 +26,8 @@ const DEV_PHONE_LAWYER_2 = '0500000004';
 const DEV_CITIZEN_PASSWORD = 'DevCitizen1!';
 
 async function main(): Promise<void> {
+  assertDevelopmentSeed(process.env);
+
   const citizenPasswordHash = await hash(DEV_CITIZEN_PASSWORD, { type: argon2id });
 
   const citizen = await prisma.user.upsert({

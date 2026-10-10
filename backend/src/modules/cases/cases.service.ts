@@ -1,9 +1,12 @@
-﻿import { Injectable } from '@nestjs/common';
+﻿import { randomBytes } from 'crypto';
+
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../shared/database/prisma.service';
 import { caseNotFound } from './cases.errors';
 import type { CaseListQueryDto } from './dto/case-list-query.dto';
+import type { CreateCaseDto } from './dto/create-case.dto';
 import type { CaseDetailDto, CaseListResult } from './dto/case-response.dto';
 import { mapCaseDetail, mapCaseListItem } from './mappers/case.mapper';
 
@@ -119,5 +122,43 @@ export class CasesService {
     }
 
     return mapCaseDetail(record);
+  }
+
+  async create(userId: string, dto: CreateCaseDto): Promise<CaseDetailDto> {
+    const authority = dto.authority?.trim() || null;
+    const notes = dto.notes?.trim() || null;
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const created = await this.prisma.case.create({
+          data: {
+            caseNumber: this.allocateCaseNumber(),
+            type: dto.type,
+            status: 'PENDING',
+            authority,
+            notes,
+            userId,
+          },
+          select: { id: true },
+        });
+        return this.getById(userId, created.id);
+      } catch (error) {
+        const duplicate =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002';
+        if (duplicate && attempt < 2) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new Error('Unable to allocate a unique case number');
+  }
+
+  private allocateCaseNumber(): string {
+    const year = new Date().getUTCFullYear();
+    const suffix = randomBytes(4).toString('hex').toUpperCase();
+    return `SJS-${year}-${suffix}`;
   }
 }

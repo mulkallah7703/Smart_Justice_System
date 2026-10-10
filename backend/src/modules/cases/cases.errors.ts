@@ -9,3 +9,11 @@ export const caseNotFound = (): AppError =>
     'القضية غير موجودة',
     HttpStatus.NOT_FOUND,
   );
+
+export const caseRateLimited = (): AppError =>
+  new AppError(
+    'CASE_RATE_LIMITED',
+    'Too many case creation attempts. Try again later',
+    'محاولات كثيرة لإضافة القضايا. حاول لاحقاً',
+    HttpStatus.TOO_MANY_REQUESTS,
+  );

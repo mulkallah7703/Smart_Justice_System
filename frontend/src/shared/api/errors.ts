@@ -32,7 +32,8 @@ const AUTH_MESSAGES: Record<string, string> = {
 
 const CASE_MESSAGES: Record<string, string> = {
   CASE_NOT_FOUND: ar.legalFile.notFound.title,
-  VALIDATION_ERROR: ar.nafath.errors.validation,
+  CASE_RATE_LIMITED: ar.legalFile.createCase.rateLimited,
+  VALIDATION_ERROR: ar.legalFile.createCase.validation,
   AUTH_UNAUTHORIZED: ar.nafath.errors.unauthorized,
   AUTH_INVALID_TOKEN: ar.nafath.errors.invalidToken,
 };

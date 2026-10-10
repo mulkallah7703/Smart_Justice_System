@@ -5,13 +5,11 @@ import styles from './CardActions.module.css';
 
 interface CardActionsProps {
   onShowIdentity: () => void;
-  onAddToWallet: () => void;
   onUpgrade: () => void;
 }
 
 const CardActions = ({
   onShowIdentity,
-  onAddToWallet,
   onUpgrade,
 }: CardActionsProps): JSX.Element => {
   return (
@@ -23,14 +21,14 @@ const CardActions = ({
         </span>
       </button>
 
-      <button type="button" className={styles.action} onClick={onAddToWallet}>
+      <button type="button" className={styles.action} disabled>
         <Icon
           name="account_balance_wallet"
           size={24}
           className={styles.actionIcon}
         />
         <span className={styles.actionLabel}>
-          {ar.judicialCard.actions.addToWallet}
+          {ar.judicialCard.actions.addToWalletSoon}
         </span>
       </button>
 

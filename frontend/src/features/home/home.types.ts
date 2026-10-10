@@ -38,8 +38,8 @@ export interface HomeService {
 
 export interface HomeData {
   user: HomeUser;
-  card: HomeJudicialCard;
-  alert: HomeAlert;
+  card: HomeJudicialCard | null;
+  alert: HomeAlert | null;
   services: HomeService[];
   cases: HomeCase[];
   isLoading: boolean;

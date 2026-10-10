@@ -143,4 +143,54 @@ describe('CasesService', () => {
       }),
     );
   });
+
+  it('creates a pending case owned by the caller and ignores client identity fields', async () => {
+    const createdAt = new Date('2026-10-10T00:00:00.000Z');
+    const prisma = {
+      case: {
+        create: jest.fn().mockResolvedValue({ id: 'case_new' }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'case_new',
+          caseNumber: 'SJS-2026-ABCDEF01',
+          type: CaseType.LABOR,
+          status: CaseStatus.PENDING,
+          authority: 'Labor court',
+          notes: 'First filing',
+          createdAt,
+          updatedAt: createdAt,
+          hearings: [],
+          deadlines: [],
+        }),
+      },
+    };
+    const service = new CasesService(prisma as unknown as PrismaService);
+
+    const created = await service.create('user-a', {
+      type: CaseType.LABOR,
+      authority: '  Labor court  ',
+      notes: '  First filing  ',
+    });
+
+    expect(created.id).toBe('case_new');
+    expect(created.status).toBe('PENDING');
+    expect(created.type).toBe('LABOR');
+    expect(created).not.toHaveProperty('userId');
+    expect(prisma.case.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: 'user-a',
+          type: 'LABOR',
+          status: 'PENDING',
+          authority: 'Labor court',
+          notes: 'First filing',
+          caseNumber: expect.stringMatching(/^SJS-\d{4}-[A-F0-9]{8}$/),
+        }),
+      }),
+    );
+    expect(prisma.case.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'case_new', userId: 'user-a', deletedAt: null },
+      }),
+    );
+  });
 });
