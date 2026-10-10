@@ -1,1 +1,678 @@
-﻿// TODO: Implementation
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS (aligned with the verified frontend contract) ─────────────────────
+
+enum Role {
+  CITIZEN
+  LAWYER
+  COURT_STAFF
+  ADMIN
+}
+
+enum CardTier {
+  NORMAL
+  SILVER
+  GOLD
+}
+
+enum CaseType {
+  RENTAL
+  COMMERCIAL
+  PERSONAL
+  LABOR
+}
+
+enum CaseStatus {
+  PENDING
+  ACTIVE
+  CLOSED
+  APPEALING
+}
+
+enum DeadlineType {
+  APPEAL
+  DOCUMENT_SUBMIT
+  HEARING
+  PAYMENT
+}
+
+enum ConsultationType {
+  INSTANT
+  WRITTEN
+  IN_PERSON
+  REPRESENTATION
+}
+
+enum ConsultationStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  APPLE_PAY
+  MADA
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentPurpose {
+  CONSULTATION
+  CARD_UPGRADE
+  OTHER
+}
+
+enum AlertType {
+  DEADLINE
+  MISSING_DOC
+  LAW_UPDATE
+  HEARING_REMINDER
+}
+
+enum AlertSeverity {
+  URGENT
+  WARNING
+  INFO
+}
+
+enum AvailabilitySlotStatus {
+  AVAILABLE
+  BOOKED
+  BLOCKED
+}
+
+enum DocumentStatus {
+  UPLOADED
+  READY
+  REJECTED
+}
+
+enum KioskDeviceStatus {
+  REGISTERED
+  ACTIVE
+  DISABLED
+}
+
+enum AiGuideSessionStatus {
+  ACTIVE
+  COMPLETED
+  EXPIRED
+}
+
+enum AiMessageRole {
+  USER
+  ASSISTANT
+}
+
+enum AiJobStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+/// Processing kind. Only stages that the discovered product actually needs.
+enum AiJobType {
+  DOCUMENT_ANALYSIS
+  OCR
+  EMBEDDING
+}
+
+/// How a DocumentPage's text was obtained. Mirrors ExtractionMethod in the AI layer.
+enum DocumentPageExtractionMethod {
+  TEXT_LAYER
+  OCR
+}
+
+/// Suitability for automatic downstream use. Mirrors ExtractionTrust (C.3.5).
+/// Arabic TEXT_LAYER and OCR are REVIEW_REQUIRED; only TRUSTED may enter embed/RAG.
+enum DocumentPageTrust {
+  TRUSTED
+  REVIEW_REQUIRED
+  UNUSABLE
+}
+
+/// Embedding lifecycle for a DocumentChunk. Qdrant is derived; Postgres is canonical.
+enum DocumentChunkEmbeddingStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+enum NotificationChannel {
+  PUSH
+  SMS
+  EMAIL
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+enum AuditActorType {
+  USER
+  KIOSK
+  SYSTEM
+  ADMIN
+}
+
+// ─── USERS ───────────────────────────────────────────────────────────────────
+
+model User {
+  id    String @id @default(cuid())
+  /// National ID when verified via Nafath. Optional for email/password accounts. Never log.
+  nationalId String? @unique
+  name       String
+  phone      String  @unique
+  email      String? @unique
+  /// Argon2id hash for email/password auth. Null for Nafath-only legacy/dev users until seeded.
+  passwordHash String?
+  role       Role   @default(CITIZEN)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  judicialCard  JudicialCard?
+  lawyerProfile Lawyer?
+  cases         Case[]
+  consultations Consultation[]
+  documents     Document[]
+  alerts        Alert[]
+  notifications Notification[]
+  payments      Payment[]
+  kioskSessions KioskSession[]
+  guideSessions AiGuideSession[]
+  aiJobs        AiJob[]
+  auditLogs     AuditLog[]       @relation("AuditActor")
+
+  @@index([role])
+}
+
+model JudicialCard {
+  id          String   @id @default(cuid())
+  cardNumber  String   @unique
+  tier        CardTier @default(NORMAL)
+  discountPct Int      @default(0)
+  validUntil  DateTime
+  issuedAt    DateTime @default(now())
+  /// Key identifier for a future signed, expiring QR. Never store a static QR secret here.
+  qrKeyId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  payments Payment[]
+}
+
+// ─── LAWYERS ─────────────────────────────────────────────────────────────────
+
+model Lawyer {
+  id            String   @id @default(cuid())
+  /// Optional link to a User. Lawyer authentication is not implemented in this phase.
+  userId        String?  @unique
+  licenseNumber String   @unique
+  specialties   String[]
+  city          String
+  bio           String?
+  rating        Float    @default(0)
+  reviewCount   Int      @default(0)
+  experienceYrs Int
+  priceFrom     Int
+  isAvailable   Boolean  @default(true)
+  isVerified    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user            User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  cases           Case[]
+  consultations   Consultation[]
+  availability    LawyerAvailabilitySlot[]
+
+  @@index([city])
+  @@index([isAvailable])
+  @@index([isVerified])
+}
+
+model LawyerAvailabilitySlot {
+  id        String                 @id @default(cuid())
+  lawyerId  String
+  startAt   DateTime
+  endAt     DateTime
+  status    AvailabilitySlotStatus @default(AVAILABLE)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  lawyer Lawyer @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  @@index([lawyerId, startAt])
+  @@index([startAt, endAt])
+  @@index([status])
+}
+
+// ─── CASES ───────────────────────────────────────────────────────────────────
+
+model Case {
+  id         String     @id @default(cuid())
+  caseNumber String     @unique
+  type       CaseType
+  status     CaseStatus @default(PENDING)
+  authority  String?
+  notes      String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  deletedAt  DateTime?
+
+  userId   String
+  lawyerId String?
+  user     User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  lawyer   Lawyer? @relation(fields: [lawyerId], references: [id], onDelete: SetNull)
+
+  hearings  Hearing[]
+  documents Document[]
+  deadlines Deadline[]
+  alerts    Alert[]
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([lawyerId])
+}
+
+model Hearing {
+  id          String   @id @default(cuid())
+  scheduledAt DateTime
+  location    String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@index([scheduledAt])
+}
+
+model Deadline {
+  id        String       @id @default(cuid())
+  type      DeadlineType
+  dueAt     DateTime
+  label     String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  alerts Alert[]
+
+  @@index([caseId])
+  @@index([dueAt])
+}
+
+// ─── CONSULTATIONS & PAYMENTS ────────────────────────────────────────────────
+
+/// Two partial unique indexes created by migration cannot be expressed in the
+/// Prisma schema and must be preserved when generating future migrations:
+///   consultation_active_lawyer_slot_key (lawyerId, scheduledAt)
+///   consultation_active_user_slot_key   (userId, scheduledAt)
+/// both WHERE "deletedAt" IS NULL AND status <> 'CANCELLED'. They are the
+/// database-level guarantee against double booking.
+model Consultation {
+  id          String             @id @default(cuid())
+  type        ConsultationType
+  scheduledAt DateTime
+  status      ConsultationStatus @default(PENDING)
+  durationMin Int                @default(20)
+  notes       String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  deletedAt   DateTime?
+
+  userId   String
+  lawyerId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  lawyer   Lawyer @relation(fields: [lawyerId], references: [id], onDelete: Restrict)
+
+  payments Payment[]
+
+  @@index([userId, status])
+  @@index([userId, scheduledAt])
+  @@index([lawyerId, scheduledAt])
+  @@index([lawyerId, status, scheduledAt])
+}
+
+/// A partial unique index created by migration cannot be expressed in the
+/// Prisma schema and must be preserved when generating future migrations:
+///   payment_active_consultation_key (consultationId)
+///   WHERE "consultationId" IS NOT NULL AND status IN ('PENDING','COMPLETED').
+/// It guarantees a consultation never has two live payment intents while still
+/// allowing a fresh attempt after a FAILED one.
+model Payment {
+  id             String         @id @default(cuid())
+  /// Payable amount after discount. Snapshotted at creation; never recomputed.
+  amount         Decimal        @db.Decimal(12, 2)
+  originalAmount Decimal        @db.Decimal(12, 2)
+  discountPct    Int            @default(0)
+  /// ISO 4217, server-controlled. The client never supplies a currency.
+  currency       String         @default("SAR")
+  method         PaymentMethod
+  status         PaymentStatus  @default(PENDING)
+  purpose        PaymentPurpose
+  /// Provider payment identifier. Unique so a retry cannot bind twice.
+  transactionId  String?        @unique
+  gatewayRef     String?
+  /// Client-supplied Idempotency-Key, unique per user.
+  idempotencyKey String?
+  /// Hash of the request payload, used to reject key reuse with a different body.
+  requestHash    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  userId         String
+  consultationId String?
+  judicialCardId String?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  consultation Consultation? @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+  judicialCard JudicialCard? @relation(fields: [judicialCardId], references: [id], onDelete: SetNull)
+
+  webhookEvents PaymentWebhookEvent[]
+
+  @@unique([userId, idempotencyKey], name: "payment_user_idempotency_key")
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([consultationId])
+  @@index([judicialCardId])
+  @@index([status])
+}
+
+/// Ledger of provider webhook deliveries. The unique event id makes webhook
+/// processing idempotent at the database level, so a replayed delivery cannot
+/// transition a payment twice.
+model PaymentWebhookEvent {
+  id          String   @id @default(cuid())
+  eventId     String   @unique
+  eventType   String
+  processedAt DateTime @default(now())
+
+  paymentId String
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+}
+
+// ─── DOCUMENTS ───────────────────────────────────────────────────────────────
+
+model Document {
+  id           String         @id @default(cuid())
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  checksum     String
+  storageKey   String         @unique
+  status       DocumentStatus @default(UPLOADED)
+  isAnalyzed   Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime?
+
+  userId String
+  caseId String?
+  user   User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  case   Case?   @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  aiJobs AiJobDocument[]
+  pages  DocumentPage[]
+  chunks DocumentChunk[]
+
+  @@index([userId])
+  @@index([caseId])
+  @@index([userId, caseId])
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+/// Per-page extraction record. Sensitive legal text — never log, never put in
+/// resultJson / Redis / BullMQ / public job status. Ownership is via Document.userId.
+/// UNIQUE(documentId, pageNumber) makes worker retries idempotent (first write wins).
+model DocumentPage {
+  id               String                       @id @default(cuid())
+  documentId       String
+  /// One-based page number, matching the extractor / citizen viewer.
+  pageNumber       Int
+  /// Exact extractor output. Must never be rewritten (no RTL reverse, digit conversion, etc.).
+  text             String                       @db.Text
+  extractionMethod DocumentPageExtractionMethod
+  trust            DocumentPageTrust
+  /// OCR confidence when the engine reports one; null for TEXT_LAYER.
+  confidence       Float?
+  /// Stable warning codes only (e.g. PDF_TEXT_VISUAL_ORDER). Never free-form prose.
+  warnings         String[]
+  language         String?
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunks   DocumentChunk[]
+
+  @@unique([documentId, pageNumber])
+  @@index([documentId])
+  @@index([documentId, trust])
+}
+
+/// Deterministic span of a TRUSTED DocumentPage. Exact substring of page text.
+/// Sensitive legal text — never log or put in resultJson / Redis / BullMQ.
+/// UNIQUE(documentPageId, chunkIndex, pipelineVersion) keeps retries idempotent.
+model DocumentChunk {
+  id              String   @id @default(cuid())
+  documentId      String
+  documentPageId  String
+  /// Zero-based order within the source page for this pipelineVersion.
+  chunkIndex      Int
+  /// Exact pageText.slice(startOffset, endOffset). Never rewritten.
+  text            String   @db.Text
+  /// UTF-16 offsets into DocumentPage.text.
+  startOffset     Int
+  endOffset       Int
+  /// Pipeline revision that produced this chunk (matches AI_PIPELINE_VERSION).
+  pipelineVersion Int
+  embeddingStatus DocumentChunkEmbeddingStatus @default(PENDING)
+  /// Exact model id used for the READY vector (e.g. text-embedding-3-small).
+  embeddingModel  String?
+  embeddedAt      DateTime?
+  /// Stable domain code only when FAILED. Never a provider stack trace.
+  embeddingErrorCode String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  document     Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentPage DocumentPage @relation(fields: [documentPageId], references: [id], onDelete: Cascade)
+
+  @@unique([documentPageId, chunkIndex, pipelineVersion])
+  @@index([documentId])
+  @@index([documentPageId])
+  @@index([documentId, embeddingStatus])
+}
+
+// ─── ALERTS & NOTIFICATIONS ──────────────────────────────────────────────────
+
+model Alert {
+  id          String        @id @default(cuid())
+  type        AlertType
+  severity    AlertSeverity
+  title       String
+  body        String
+  isRead      Boolean       @default(false)
+  triggeredAt DateTime      @default(now())
+  createdAt   DateTime      @default(now())
+
+  userId     String
+  caseId     String?
+  deadlineId String?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  case     Case?     @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  deadline Deadline? @relation(fields: [deadlineId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead])
+  @@index([triggeredAt])
+  @@index([caseId])
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  channel   NotificationChannel
+  title     String
+  body      String
+  status    NotificationStatus  @default(QUEUED)
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+// ─── KIOSK ───────────────────────────────────────────────────────────────────
+
+model KioskDevice {
+  id       String            @id @default(cuid())
+  /// Public device identifier. This is NOT an authentication secret.
+  deviceId String            @unique
+  name     String
+  status   KioskDeviceStatus @default(REGISTERED)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  sessions KioskSession[]
+
+  @@index([status])
+}
+
+model KioskSession {
+  id            String    @id @default(cuid())
+  kioskDeviceId String
+  userId        String?
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+  endedAt       DateTime?
+
+  device KioskDevice @relation(fields: [kioskDeviceId], references: [id], onDelete: Cascade)
+  user   User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([kioskDeviceId])
+  @@index([expiresAt])
+  @@index([userId])
+}
+
+// ─── AI FOUNDATION (no provider calls in this phase) ─────────────────────────
+
+model AiGuideSession {
+  id        String               @id @default(cuid())
+  status    AiGuideSessionStatus @default(ACTIVE)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  expiresAt DateTime
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messages AiGuideMessage[]
+
+  @@index([userId, status])
+  @@index([expiresAt])
+}
+
+model AiGuideMessage {
+  id        String        @id @default(cuid())
+  role      AiMessageRole
+  content   String
+  createdAt DateTime      @default(now())
+
+  sessionId String
+  session   AiGuideSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model AiJob {
+  id          String      @id @default(cuid())
+  type        AiJobType
+  status      AiJobStatus @default(PENDING)
+  progress    Int         @default(0)
+  stageIndex  Int         @default(0)
+  resultJson  Json?
+  errorCode   String?
+  /// Attempts already consumed by the worker. Bounded by maxAttempts.
+  attempts    Int         @default(0)
+  maxAttempts Int         @default(3)
+  /// Pipeline revision that produced this job. Part of the idempotency key so a
+  /// pipeline change is allowed to reprocess the same documents.
+  pipelineVersion Int     @default(1)
+  /// Derived server-side from (pipelineVersion, type, document set). Never
+  /// client-supplied, and never contains personal data.
+  idempotencyKey String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  documents AiJobDocument[]
+
+  @@unique([userId, idempotencyKey], name: "ai_job_user_idempotency_key")
+  @@index([userId, status])
+  @@index([status])
+}
+
+model AiJobDocument {
+  aiJobId    String
+  documentId String
+
+  aiJob    AiJob    @relation(fields: [aiJobId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@id([aiJobId, documentId])
+}
+
+// ─── AUDIT ───────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           String         @id @default(cuid())
+  actorType    AuditActorType
+  action       String
+  resourceType String
+  resourceId   String?
+  ip           String?
+  userAgent    String?
+  /// Structured context only. Never store secrets, tokens, or raw National IDs.
+  metadata     Json?
+  createdAt    DateTime       @default(now())
+
+  actorUserId String?
+  actor       User?   @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}

@@ -35,15 +35,17 @@ const PaymentSummary = ({ summary }: PaymentSummaryProps): JSX.Element => {
           </span>
         </div>
 
-        <div className={`${styles.row} ${styles.discountRow}`}>
-          <span className={styles.discountLabel}>
-            <Icon name="sell" size={16} className={styles.discountIcon} />
-            {summary.discountLabel}
-          </span>
-          <span className={styles.discountValue}>
-            −{formatMoneyAr(summary.discountAmount)} {summary.currency}
-          </span>
-        </div>
+        {summary.discountPct > 0 ? (
+          <div className={`${styles.row} ${styles.discountRow}`}>
+            <span className={styles.discountLabel}>
+              <Icon name="sell" size={16} className={styles.discountIcon} />
+              {summary.discountLabel}
+            </span>
+            <span className={styles.discountValue}>
+              −{formatMoneyAr(summary.discountAmount)} {summary.currency}
+            </span>
+          </div>
+        ) : null}
 
         <div className={`${styles.row} ${styles.totalRow}`}>
           <span className={styles.totalLabel}>{ar.payment.summary.total}</span>

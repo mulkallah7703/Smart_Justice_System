@@ -1,10 +1,12 @@
 ﻿import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
+import { PublicOnly, RequireAuth } from './RequireAuth';
+
 const SplashScreen = lazy(() => import('../../features/auth/SplashScreen'));
 const OnboardingScreen = lazy(() => import('../../features/auth/OnboardingScreen'));
-const NafathVerification = lazy(() => import('../../features/auth/NafathVerification'));
-const FileCreatedSuccess = lazy(() => import('../../features/auth/FileCreatedSuccess'));
+const LoginScreen = lazy(() => import('../../features/auth/LoginScreen'));
+const RegisterScreen = lazy(() => import('../../features/auth/RegisterScreen'));
 const HomeScreen = lazy(() => import('../../features/home/HomeScreen'));
 const AlertsCenter = lazy(() => import('../../features/alerts/AlertsCenter'));
 const LegalGuideChat = lazy(
@@ -45,6 +47,9 @@ const CardTierUpgrade = lazy(
 const LegalFileScreen = lazy(
   () => import('../../features/legal-file/LegalFileScreen'),
 );
+const CaseDetailScreen = lazy(
+  () => import('../../features/legal-file/CaseDetailScreen'),
+);
 const KioskScreen = lazy(() => import('../../features/kiosk/KioskScreen'));
 const ProfileScreen = lazy(
   () => import('../../features/profile/ProfileScreen'),
@@ -54,34 +59,178 @@ const AppRouter = (): JSX.Element => {
   return (
     <Suspense fallback={null}>
       <Routes>
-        <Route path="/" element={<HomeScreen />} />
-        <Route path="/alerts" element={<AlertsCenter />} />
-        <Route path="/guide" element={<LegalGuideChat />} />
-        <Route path="/guide/question" element={<ClarifyingQuestion />} />
-        <Route
-          path="/guide/summary/:sessionId"
-          element={<GuidanceSummary />}
-        />
-        <Route path="/advisor" element={<DocumentUpload />} />
-        <Route path="/advisor/analyzing" element={<AnalyzingLoader />} />
-        <Route path="/advisor/opinion" element={<InitialOpinion />} />
-        <Route path="/advisor/report/:jobId" element={<AdvisoryReport />} />
-        <Route path="/lawyers" element={<LawyersList />} />
-        <Route path="/lawyers/:id" element={<LawyerProfile />} />
-        <Route path="/lawyers/:id/book" element={<ConsultationType />} />
-        <Route
-          path="/payment/:consultationId"
-          element={<PaymentScreen />}
-        />
-        <Route path="/card" element={<JudicialCardScreen />} />
-        <Route path="/card/upgrade" element={<CardTierUpgrade />} />
-        <Route path="/legal-file" element={<LegalFileScreen />} />
-        <Route path="/kiosk" element={<KioskScreen />} />
-        <Route path="/profile" element={<ProfileScreen />} />
         <Route path="/splash" element={<SplashScreen />} />
         <Route path="/onboarding" element={<OnboardingScreen />} />
-        <Route path="/auth/verify" element={<NafathVerification />} />
-        <Route path="/auth/success" element={<FileCreatedSuccess />} />
+        <Route
+          path="/login"
+          element={
+            <PublicOnly>
+              <LoginScreen />
+            </PublicOnly>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicOnly>
+              <RegisterScreen />
+            </PublicOnly>
+          }
+        />
+
+        <Route
+          path="/"
+          element={
+            <RequireAuth>
+              <HomeScreen />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/alerts"
+          element={
+            <RequireAuth>
+              <AlertsCenter />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/guide"
+          element={
+            <RequireAuth>
+              <LegalGuideChat />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/guide/question"
+          element={
+            <RequireAuth>
+              <ClarifyingQuestion />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/guide/summary/:sessionId"
+          element={
+            <RequireAuth>
+              <GuidanceSummary />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/advisor"
+          element={
+            <RequireAuth>
+              <DocumentUpload />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/advisor/analyzing"
+          element={
+            <RequireAuth>
+              <AnalyzingLoader />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/advisor/opinion"
+          element={
+            <RequireAuth>
+              <InitialOpinion />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/advisor/report/:jobId"
+          element={
+            <RequireAuth>
+              <AdvisoryReport />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/lawyers"
+          element={
+            <RequireAuth>
+              <LawyersList />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/lawyers/:id"
+          element={
+            <RequireAuth>
+              <LawyerProfile />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/lawyers/:id/book"
+          element={
+            <RequireAuth>
+              <ConsultationType />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/payment/:consultationId"
+          element={
+            <RequireAuth>
+              <PaymentScreen />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/card"
+          element={
+            <RequireAuth>
+              <JudicialCardScreen />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/card/upgrade"
+          element={
+            <RequireAuth>
+              <CardTierUpgrade />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/legal-file"
+          element={
+            <RequireAuth>
+              <LegalFileScreen />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/legal-file/:caseId"
+          element={
+            <RequireAuth>
+              <CaseDetailScreen />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/kiosk"
+          element={
+            <RequireAuth>
+              <KioskScreen />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth>
+              <ProfileScreen />
+            </RequireAuth>
+          }
+        />
+
         <Route path="*" element={<Navigate to="/splash" replace />} />
       </Routes>
     </Suspense>

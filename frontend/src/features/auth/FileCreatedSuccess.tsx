@@ -1,9 +1,14 @@
-﻿import { useNavigate } from 'react-router-dom';
+﻿import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { ar } from '../../core/i18n/ar';
 import { animationClass } from '../../core/theme/animations';
 import Button from '../../shared/components/Button';
 import ScreenShell from '../../shared/components/ScreenShell';
+
+import { getUserProfile } from '../profile/profileApi';
+import type { UserProfile } from '../profile/profile.types';
+import { isRealApiMode } from '../../shared/api/mode';
 
 import ProfileSummaryCard from './ProfileSummaryCard';
 import SuccessHeader from './SuccessHeader';
@@ -11,6 +16,42 @@ import styles from './FileCreatedSuccess.module.css';
 
 const FileCreatedSuccess = (): JSX.Element => {
   const navigate = useNavigate();
+  const [profile, setProfile] = useState<UserProfile>({
+    name: ar.success.profile.name,
+    cardLabel: ar.success.profile.cardLabel,
+    cardNumber: '',
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    const load = async (): Promise<void> => {
+      if (!isRealApiMode()) {
+        return;
+      }
+
+      try {
+        const data = await getUserProfile();
+        if (active) {
+          setProfile(data);
+        }
+      } catch {
+        if (active) {
+          setProfile({
+            name: ar.success.profile.name,
+            cardLabel: ar.success.profile.cardLabel,
+            cardNumber: '',
+          });
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleGoHome = (): void => {
     navigate('/', { replace: true });
@@ -32,9 +73,15 @@ const FileCreatedSuccess = (): JSX.Element => {
           />
 
           <ProfileSummaryCard
-            name={ar.success.profile.name}
-            cardLabel={ar.success.profile.cardLabel}
-            tierLabel={ar.success.profile.tierLabel}
+            name={profile.name}
+            cardLabel={profile.cardLabel}
+            tierLabel={
+              profile.cardLabel === ar.profile.cardLabels.GOLD
+                ? 'فئة ذهبية'
+                : profile.cardLabel === ar.profile.cardLabels.SILVER
+                  ? ar.success.profile.tierLabel
+                  : 'فئة عادية'
+            }
             stats={stats}
           />
         </main>

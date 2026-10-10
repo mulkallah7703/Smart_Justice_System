@@ -11,6 +11,9 @@ out/
 .env
 .env.*
 !.env.example
+!**/.env.example
+!**/.env.*.example
+!infra/docker/.env.production.example
 
 # Logs & caches
 *.log
@@ -20,6 +23,9 @@ Thumbs.db
 .vite/
 coverage/
 *.tsbuildinfo
+
+# OCR language data (provisioned by script / Docker; not committed)
+**/.ocr-data/
 
 # Editor
 .idea/

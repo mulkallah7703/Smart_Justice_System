@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend unit / typecheck / build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm test -- --ci --forceExit
+      - run: npm run build
+
+  frontend:
+    name: Frontend test / typecheck / build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          VITE_API_MODE: real
+          VITE_API_BASE_URL: https://ci.example.com/api/v1
+
+  docker:
+    name: Docker compose config + image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose config validation
+        run: |
+          cp infra/docker/.env.production.example infra/docker/.env.production
+          # Placeholder values so `config` resolves; no live secrets.
+          sed -i 's/CHANGE_ME_strong_postgres_password/ci_postgres_pass/' infra/docker/.env.production
+          sed -i 's/CHANGE_ME_strong_redis_password/ci_redis_pass/' infra/docker/.env.production
+          sed -i 's/CHANGE_ME_strong_minio_password/ci_minio_pass_12/' infra/docker/.env.production
+          sed -i 's/CHANGE_ME_long_random_jwt_secret/ci_jwt_secret_at_least_32_chars/' infra/docker/.env.production
+          sed -i 's/CHANGE_ME_payment_webhook_secret_unused_while_deferred/ci_payment_webhook/' infra/docker/.env.production
+          printf '\nOPENAI_API_KEY=sk-ci-placeholder\nAI_QDRANT_URL=https://qdrant.example.com\nAI_QDRANT_API_KEY=ci-qdrant\n' >> infra/docker/.env.production
+          docker compose -f infra/docker/docker-compose.production.yml --env-file infra/docker/.env.production config >/dev/null
+      - name: Build API image
+        run: docker build -f infra/docker/backend.Dockerfile -t sjs-api:ci .
+      - name: Build Worker image
+        run: docker build -f infra/docker/worker.Dockerfile -t sjs-worker:ci .
+      - name: Build Frontend image
+        run: |
+          docker build -f infra/docker/frontend.Dockerfile \
+            --build-arg VITE_API_MODE=real \
+            --build-arg VITE_API_BASE_URL=https://ci.example.com/api/v1 \
+            -t sjs-frontend:ci .
+
+  # E2E requires Postgres/Redis/MinIO. Opt-in via repository variable ENABLE_E2E=true
+  # and a reachable test stack — not required for ordinary PRs without secrets.
+  e2e:
+    name: Backend E2E (opt-in)
+    if: ${{ vars.ENABLE_E2E == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run test:e2e -- --ci --forceExit
+
+# Live OpenAI/Qdrant/RAG tests are intentionally NOT run in CI (no production secrets).

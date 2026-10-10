@@ -10,6 +10,13 @@ export type FindingTone = 'success' | 'warning' | 'info';
 
 export type StrengthLevel = 'strong' | 'medium' | 'weak';
 
+export type AdvisorQuestionPhase =
+  | 'ready'
+  | 'retrieving'
+  | 'answering'
+  | 'done'
+  | 'error';
+
 export interface UploadedFileItem {
   id: string;
   name: string;
@@ -30,10 +37,103 @@ export interface AnalysisStep {
   status: AnalysisStepStatus;
 }
 
-export interface AdvisorReportPoll {
+/** Mapped job poll values for the analyzing screen (backend-authored). */
+export interface AdvisorJobPoll {
+  jobId: string;
   status: ReportJobStatus;
   progress: number;
   stageIndex: number;
+  errorCode: string | null;
+}
+
+export interface BackendAiJobStatus {
+  jobId: string;
+  type: string;
+  status: ReportJobStatus;
+  progress: number;
+  stageIndex: number;
+  errorCode: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  result: unknown;
+}
+
+export interface BackendRetrieveProvenance {
+  documentId: string;
+  documentName: string;
+  documentPageId: string;
+  documentChunkId: string;
+  pageNumber: number;
+  chunkIndex: number;
+  startOffset: number;
+  endOffset: number;
+  pipelineVersion: number;
+  embeddingModel: string;
+  extractionMethod: 'TEXT_LAYER' | 'OCR';
+  trust: 'TRUSTED';
+}
+
+export interface BackendRetrieveResultItem {
+  score: number;
+  text: string;
+  provenance: BackendRetrieveProvenance;
+}
+
+export interface BackendRetrieveMeta {
+  collection: string;
+  embeddingModel: string;
+  embeddingDimensions: number;
+  limit: number;
+  returned: number;
+  droppedCount: number;
+}
+
+export interface BackendRetrieveResponse {
+  query: string;
+  results: BackendRetrieveResultItem[];
+  retrieval: BackendRetrieveMeta;
+}
+
+export interface BackendAnswerCitation {
+  evidenceId: string;
+  documentId: string;
+  documentName: string;
+  pageNumber: number;
+  chunkId: string;
+  startOffset: number;
+  endOffset: number;
+}
+
+export interface BackendAnswerClaim {
+  text: string;
+  citations: BackendAnswerCitation[];
+}
+
+export interface BackendAnswerResponse {
+  answer: string;
+  claims: BackendAnswerClaim[];
+  insufficientEvidence: boolean;
+  model: string;
+}
+
+export interface AdvisorCitationView {
+  evidenceId: string;
+  documentName: string;
+  pageNumber: number;
+}
+
+export interface AdvisorClaimView {
+  id: string;
+  text: string;
+  citations: AdvisorCitationView[];
+}
+
+/** View model for a backend RAG answer — citations are backend-authored only. */
+export interface AdvisorAnswerView {
+  answer: string;
+  claims: AdvisorClaimView[];
+  insufficientEvidence: boolean;
 }
 
 export interface OpinionFinding {

@@ -1,4 +1,4 @@
-﻿import { useSearchParams, useNavigate } from 'react-router-dom';
+﻿import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { ar } from '../../core/i18n/ar';
 import ScreenShell from '../../shared/components/ScreenShell';
@@ -6,14 +6,15 @@ import ScreenShell from '../../shared/components/ScreenShell';
 import AnalysisOrb from './AnalysisOrb';
 import AnalysisStepCard from './AnalysisStepCard';
 import AnalyzingHeader from './AnalyzingHeader';
+import FileUploadProgress from './FileUploadProgress';
 import { useAnalysisJob } from './useAnalysisJob';
 import styles from './AnalyzingLoader.module.css';
 
 const AnalyzingLoader = (): JSX.Element => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const jobId = searchParams.get('jobId') ?? 'demo';
-  const { steps, title, subtitle } = useAnalysisJob(jobId);
+  const jobId = searchParams.get('jobId') ?? '';
+  const { steps, progress, title, subtitle } = useAnalysisJob(jobId);
 
   return (
     <ScreenShell variant="dark" noNav>
@@ -29,6 +30,13 @@ const AnalyzingLoader = (): JSX.Element => {
           <div className={styles.copy}>
             <h2 className={styles.title}>{title}</h2>
             <p className={styles.subtitle}>{subtitle}</p>
+          </div>
+
+          <div
+            className={styles.progressWrap}
+            aria-label={ar.advisor.analyzing.progressAria}
+          >
+            <FileUploadProgress progress={progress} />
           </div>
 
           <div className={styles.steps}>

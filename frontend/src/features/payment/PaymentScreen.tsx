@@ -25,7 +25,11 @@ const PaymentScreen = (): JSX.Element => {
     setSelectedMethod,
     isPaying,
     canPay,
+    statusMessage,
+    errorMessage,
+    canRetry,
     pay,
+    retry,
   } = usePayment(consultationId);
 
   const handlePay = async (): Promise<void> => {
@@ -66,19 +70,36 @@ const PaymentScreen = (): JSX.Element => {
         </div>
 
         <footer className={styles.footer}>
-          <Button
-            variant="primary"
-            size="lg"
-            fullWidth
-            icon="lock"
-            iconFilled
-            disabled={!canPay}
-            onClick={() => {
-              void handlePay();
-            }}
-          >
-            {isPaying ? ar.payment.paying : ctaLabel}
-          </Button>
+          {statusMessage ? (
+            <p className={styles.status} role="status">
+              {statusMessage}
+            </p>
+          ) : null}
+          {errorMessage ? (
+            <p className={styles.error} role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
+
+          {canRetry ? (
+            <Button variant="primary" size="lg" fullWidth onClick={retry}>
+              {ar.payment.retry}
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              icon="lock"
+              iconFilled
+              disabled={!canPay}
+              onClick={() => {
+                void handlePay();
+              }}
+            >
+              {isPaying ? ar.payment.paying : ctaLabel}
+            </Button>
+          )}
         </footer>
       </div>
     </ScreenShell>

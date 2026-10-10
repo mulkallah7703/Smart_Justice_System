@@ -13,6 +13,7 @@ const KioskScreen = (): JSX.Element => {
     services,
     isBusy,
     authMode,
+    errorMessage,
     scanQr,
     tapCard,
     runQuickService,
@@ -38,6 +39,11 @@ const KioskScreen = (): JSX.Element => {
             <section className={styles.welcome}>
               <h2 className={styles.welcomeTitle}>{ar.kiosk.welcomeTitle}</h2>
               <p className={styles.welcomeBody}>{ar.kiosk.welcomeBody}</p>
+              {errorMessage ? (
+                <p className={styles.welcomeBody} role="alert">
+                  {errorMessage}
+                </p>
+              ) : null}
             </section>
 
             <div className={styles.actions}>

@@ -2,7 +2,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import App from './App';
+import { assertProductionApiConfig } from './shared/api/mode';
 import './styles/global.css';
+
+assertProductionApiConfig();
 
 const rootElement = document.getElementById('root');
 

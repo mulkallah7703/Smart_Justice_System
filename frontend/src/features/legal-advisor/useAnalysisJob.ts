@@ -1,9 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { ar } from '../../core/i18n/ar';
 
-import { pollAdvisorReport, resetAdvisorJobMock } from './advisorApi';
+import { pollAdvisorJob, resetAdvisorJobMock } from './advisorApi';
+import {
+  ADVISOR_MAX_POLL_ATTEMPTS,
+  ADVISOR_POLL_INTERVAL_MS,
+  clampAdvisorStageIndex,
+  decideAdvisorPoll,
+} from './advisorPoll';
 
 import type { AnalysisStep, AnalysisStepStatus } from './advisor.types';
 
@@ -34,47 +40,92 @@ const buildSteps = (activeIndex: number): AnalysisStep[] =>
 
 export const useAnalysisJob = (jobId: string): UseAnalysisJobResult => {
   const navigate = useNavigate();
-  const [stageIndex, setStageIndex] = useState(1);
-  const [progress, setProgress] = useState(67);
+  const [stageIndex, setStageIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
-    const activeJobId = jobId || `demo-${Date.now()}`;
-    resetAdvisorJobMock(activeJobId);
+    if (!jobId) {
+      navigate('/advisor', { replace: true, state: { error: true } });
+      return undefined;
+    }
+
+    resetAdvisorJobMock(jobId);
     let cancelled = false;
+    let attempt = 0;
+    let timeoutId = 0;
+
+    const failToUpload = (reason?: string): void => {
+      navigate('/advisor', {
+        replace: true,
+        state: { error: reason ?? true },
+      });
+    };
+
+    const scheduleNext = (): void => {
+      timeoutId = window.setTimeout(() => {
+        void tick();
+      }, ADVISOR_POLL_INTERVAL_MS);
+    };
 
     const tick = async (): Promise<void> => {
+      if (cancelled || inFlightRef.current) {
+        return;
+      }
+
+      inFlightRef.current = true;
+      attempt += 1;
+
       try {
-        const result = await pollAdvisorReport(activeJobId);
+        const result = await pollAdvisorJob(jobId);
         if (cancelled) {
           return;
         }
 
         setProgress(result.progress);
-        setStageIndex(result.stageIndex);
+        setStageIndex(
+          clampAdvisorStageIndex(result.stageIndex, stageLabels.length),
+        );
 
-        if (result.status === 'DONE') {
-          navigate('/advisor/opinion', { replace: true });
+        const decision = decideAdvisorPoll({
+          status: result.status,
+          attempt,
+          maxAttempts: ADVISOR_MAX_POLL_ATTEMPTS,
+        });
+
+        if (decision.terminal === 'DONE') {
+          navigate(
+            `/advisor/opinion?jobId=${encodeURIComponent(jobId)}`,
+            { replace: true },
+          );
           return;
         }
 
-        if (result.status === 'FAILED') {
-          navigate('/advisor', { replace: true, state: { error: true } });
+        if (decision.terminal === 'FAILED') {
+          failToUpload(result.errorCode ?? 'FAILED');
+          return;
         }
+
+        if (decision.terminal === 'TIMEOUT') {
+          failToUpload('TIMEOUT');
+          return;
+        }
+
+        scheduleNext();
       } catch {
         if (!cancelled) {
-          navigate('/advisor', { replace: true, state: { error: true } });
+          failToUpload();
         }
+      } finally {
+        inFlightRef.current = false;
       }
     };
 
     void tick();
-    const interval = window.setInterval(() => {
-      void tick();
-    }, 2000);
 
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      window.clearTimeout(timeoutId);
     };
   }, [jobId, navigate]);
 

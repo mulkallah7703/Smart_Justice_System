@@ -31,6 +31,16 @@
   white-space: nowrap;
 }
 
+.errorBanner {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-danger, #b42318) 12%, transparent);
+  color: var(--color-danger, #b42318);
+  font-size: var(--font-size-body-sm);
+  text-align: center;
+}
+
 .messages {
   display: flex;
   flex-direction: column;

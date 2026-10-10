@@ -16,6 +16,7 @@ const LawyersList = (): JSX.Element => {
   const {
     lawyers,
     isLoading,
+    errorMessage,
     search,
     setSearch,
     specialty,
@@ -41,16 +42,26 @@ const LawyersList = (): JSX.Element => {
 
         <ScrollContent className={styles.content}>
           <div className={styles.list}>
-            {!isLoading
-              ? lawyers.map((lawyer) => (
+            {!isLoading ? (
+              <>
+                {errorMessage ? (
+                  <p className={styles.message} role="alert">
+                    {errorMessage}
+                  </p>
+                ) : null}
+                {!errorMessage && lawyers.length === 0 ? (
+                  <p className={styles.message}>{ar.lawyers.empty}</p>
+                ) : null}
+                {lawyers.map((lawyer) => (
                   <LawyerCard
                     key={lawyer.id}
                     lawyer={lawyer}
                     onOpen={(id) => navigate(`/lawyers/${id}`)}
                     onBook={(id) => navigate(`/lawyers/${id}/book`)}
                   />
-                ))
-              : null}
+                ))}
+              </>
+            ) : null}
           </div>
         </ScrollContent>
 

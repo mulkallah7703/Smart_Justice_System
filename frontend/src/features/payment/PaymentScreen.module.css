@@ -38,3 +38,20 @@
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
 }
+
+.status,
+.error {
+  margin: 0;
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body);
+  text-align: center;
+}
+
+.status {
+  color: var(--color-text-muted);
+}
+
+.error {
+  color: var(--color-danger);
+}

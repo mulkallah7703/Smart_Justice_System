@@ -1,5 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 
+import { getUserFacingLawyerError } from '../../shared/api/errors';
+
 import { fetchLawyers } from './lawyersApi';
 
 import type { Lawyer, LawyerSpecialty } from './lawyers.types';
@@ -7,6 +9,7 @@ import type { Lawyer, LawyerSpecialty } from './lawyers.types';
 interface UseLawyersResult {
   lawyers: Lawyer[];
   isLoading: boolean;
+  errorMessage: string | null;
   search: string;
   setSearch: (value: string) => void;
   specialty: LawyerSpecialty;
@@ -19,6 +22,7 @@ export const useLawyers = (): UseLawyersResult => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [specialty, setSpecialty] = useState<LawyerSpecialty>('RENTAL');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -35,6 +39,7 @@ export const useLawyers = (): UseLawyersResult => {
 
     const load = async (): Promise<void> => {
       setIsLoading(true);
+      setErrorMessage(null);
       try {
         const data = await fetchLawyers({
           q: debouncedSearch,
@@ -42,6 +47,11 @@ export const useLawyers = (): UseLawyersResult => {
         });
         if (!cancelled) {
           setLawyers(data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLawyers([]);
+          setErrorMessage(getUserFacingLawyerError(error));
         }
       } finally {
         if (!cancelled) {
@@ -61,11 +71,12 @@ export const useLawyers = (): UseLawyersResult => {
     () => ({
       lawyers,
       isLoading,
+      errorMessage,
       search,
       setSearch,
       specialty,
       setSpecialty,
     }),
-    [lawyers, isLoading, search, specialty],
+    [lawyers, isLoading, errorMessage, search, specialty],
   );
 };

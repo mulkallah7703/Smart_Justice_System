@@ -11,8 +11,10 @@ interface FileUploadZoneProps {
   filesLabel: string;
   cameraLabel: string;
   onFiles: (files: File[]) => void;
+  onRejected?: (files: File[]) => void;
   accept?: string;
   maxSizeMB?: number;
+  disabled?: boolean;
 }
 
 const FileUploadZone = ({
@@ -21,25 +23,33 @@ const FileUploadZone = ({
   filesLabel,
   cameraLabel,
   onFiles,
+  onRejected,
   accept = '.pdf,.png,.jpg,.jpeg,.docx,application/pdf,image/*,.doc,.docx',
-  maxSizeMB = 20,
+  maxSizeMB = 10,
+  disabled = false,
 }: FileUploadZoneProps): JSX.Element => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const cameraRef = useRef<HTMLInputElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
   const emitValidFiles = (list: FileList | File[]): void => {
-    const files = Array.from(list).filter(
-      (file) => file.size <= maxSizeMB * 1024 * 1024,
-    );
+    const maxBytes = maxSizeMB * 1024 * 1024;
+    const all = Array.from(list);
+    const files = all.filter((file) => file.size <= maxBytes);
+    const rejected = all.filter((file) => file.size > maxBytes);
+
     if (files.length > 0) {
       onFiles(files);
+    }
+    if (rejected.length > 0) {
+      onRejected?.(rejected);
     }
   };
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
     if (event.target.files) {
       emitValidFiles(event.target.files);
+      // Reset so selecting the same file again still fires a change event.
       event.target.value = '';
     }
   };
@@ -47,6 +57,9 @@ const FileUploadZone = ({
   const handleDrop = (event: DragEvent<HTMLDivElement>): void => {
     event.preventDefault();
     setIsDragOver(false);
+    if (disabled) {
+      return;
+    }
     if (event.dataTransfer.files) {
       emitValidFiles(event.dataTransfer.files);
     }
@@ -79,6 +92,7 @@ const FileUploadZone = ({
           size="md"
           fullWidth
           icon="folder_open"
+          disabled={disabled}
           onClick={() => inputRef.current?.click()}
         >
           {filesLabel}
@@ -90,6 +104,7 @@ const FileUploadZone = ({
           fullWidth
           icon="photo_camera"
           className={styles.cameraBtn}
+          disabled={disabled}
           onClick={() => cameraRef.current?.click()}
         >
           {cameraLabel}
@@ -102,6 +117,8 @@ const FileUploadZone = ({
         type="file"
         accept={accept}
         multiple
+        aria-label={filesLabel}
+        disabled={disabled}
         onChange={handleChange}
       />
       <input
@@ -110,6 +127,8 @@ const FileUploadZone = ({
         type="file"
         accept="image/*"
         capture="environment"
+        aria-label={cameraLabel}
+        disabled={disabled}
         onChange={handleChange}
       />
     </div>

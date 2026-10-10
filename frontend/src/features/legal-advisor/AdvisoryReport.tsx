@@ -7,7 +7,6 @@ import Icon from '../../shared/components/Icon';
 import ScreenShell from '../../shared/components/ScreenShell';
 
 import ReportDocumentCard from './ReportDocumentCard';
-import { downloadAdvisoryReportPdf } from './advisorApi';
 import { useAdvisoryReport } from './useAdvisoryReport';
 import styles from './AdvisoryReport.module.css';
 
@@ -32,13 +31,6 @@ const AdvisoryReport = (): JSX.Element => {
     void navigator.clipboard?.writeText(shareUrl);
   };
 
-  const handleDownloadPdf = async (): Promise<void> => {
-    const url = await downloadAdvisoryReportPdf(jobId);
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
-  };
-
   return (
     <ScreenShell variant="default" noNav>
       <div className={styles.screen}>
@@ -57,22 +49,15 @@ const AdvisoryReport = (): JSX.Element => {
               >
                 <Icon name="ios_share" size={20} />
               </button>
-              <button
-                type="button"
-                className={styles.iconButton}
-                aria-label={ar.advisor.report.downloadAria}
-                onClick={() => {
-                  void handleDownloadPdf();
-                }}
-              >
-                <Icon name="download" size={20} />
-              </button>
             </div>
           }
         />
 
         <div className={styles.content}>
           {!isLoading && report ? <ReportDocumentCard report={report} /> : null}
+          {!isLoading && !report ? (
+            <p className={styles.emptyAnswer}>{ar.advisor.report.emptyAnswer}</p>
+          ) : null}
         </div>
 
         <div className={styles.footer}>
@@ -90,9 +75,7 @@ const AdvisoryReport = (): JSX.Element => {
             fullWidth
             icon="picture_as_pdf"
             className={styles.pdfBtn}
-            onClick={() => {
-              void handleDownloadPdf();
-            }}
+            disabled
           >
             {ar.advisor.report.downloadPdf}
           </Button>

@@ -1,14 +1,18 @@
-﻿import { ar } from '../../core/i18n/ar';
+import { ar } from '../../core/i18n/ar';
 import { endpoints } from '../../shared/api/endpoints';
+import { ApiError } from '../../shared/api/errors';
+import { apiRequest } from '../../shared/api/httpClient';
+import { isMockApiMode } from '../../shared/api/mode';
 
+import { mapBackendLawyer, mapBackendLawyerDetail } from './mapLawyer';
 import type {
+  BackendLawyer,
+  BackendLawyerDetail,
   Lawyer,
   LawyerProfileData,
   LawyersQuery,
   LawyerSpecialty,
 } from './lawyers.types';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => {
@@ -145,7 +149,7 @@ const matchesQuery = (lawyer: Lawyer, q?: string): boolean => {
 export const fetchLawyers = async (
   query: LawyersQuery = {},
 ): Promise<Lawyer[]> => {
-  if (!API_BASE_URL) {
+  if (isMockApiMode()) {
     await wait(280);
     return mockLawyers().filter(
       (lawyer) =>
@@ -155,41 +159,37 @@ export const fetchLawyers = async (
   }
 
   const params = new URLSearchParams();
-  if (query.q) params.set('q', query.q);
+  const search = query.q?.trim();
+  if (search) {
+    params.set('q', search);
+  }
   if (query.specialty && query.specialty !== 'all') {
     params.set('specialty', query.specialty);
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}${endpoints.lawyers.list}?${params.toString()}`,
+  const suffix = params.toString();
+  const records = await apiRequest<BackendLawyer[]>(
+    suffix ? `${endpoints.lawyers.list}?${suffix}` : endpoints.lawyers.list,
   );
 
-  if (!response.ok) {
-    throw new Error('LAWYERS_FETCH_FAILED');
-  }
-
-  const json = (await response.json()) as { data: Lawyer[] };
-  return json.data;
+  return records.map(mapBackendLawyer);
 };
 
 export const fetchLawyerById = async (
   id: string,
 ): Promise<LawyerProfileData> => {
-  if (!API_BASE_URL) {
+  if (isMockApiMode()) {
     await wait(250);
-    const lawyer =
-      mockLawyers().find((item) => item.id === id) ?? mockLawyers()[0];
+    const lawyer = mockLawyers().find((item) => item.id === id);
+    if (!lawyer) {
+      throw new ApiError('LAWYER_NOT_FOUND', 'The lawyer was not found', 404);
+    }
     return toProfile(lawyer);
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}${endpoints.lawyers.detail(id)}`,
+  const record = await apiRequest<BackendLawyerDetail>(
+    endpoints.lawyers.detail(id),
   );
 
-  if (!response.ok) {
-    throw new Error('LAWYER_DETAIL_FAILED');
-  }
-
-  const json = (await response.json()) as { data: LawyerProfileData };
-  return json.data;
+  return mapBackendLawyerDetail(record);
 };

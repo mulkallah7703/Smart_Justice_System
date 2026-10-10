@@ -47,6 +47,11 @@
   color: var(--color-dark-muted);
 }
 
+.progressWrap {
+  width: 100%;
+  max-width: 400px;
+}
+
 .steps {
   display: flex;
   flex-direction: column;

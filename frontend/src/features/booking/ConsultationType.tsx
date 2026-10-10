@@ -13,7 +13,7 @@ import styles from './ConsultationType.module.css';
 
 const ConsultationType = (): JSX.Element => {
   const navigate = useNavigate();
-  const { id = 'lawyer-1' } = useParams<{ id: string }>();
+  const { id = '' } = useParams<{ id: string }>();
   const {
     types,
     dates,
@@ -25,10 +25,12 @@ const ConsultationType = (): JSX.Element => {
     setSelectedType,
     setSelectedDateId,
     setSelectedTimeId,
+    isLoadingSlots,
     isSubmitting,
     canContinue,
+    errorMessage,
     submitBooking,
-  } = useBooking();
+  } = useBooking(id);
 
   const handleContinue = async (): Promise<void> => {
     const consultationId = await submitBooking(id);
@@ -55,12 +57,18 @@ const ConsultationType = (): JSX.Element => {
             slots={slots}
             selectedDateId={selectedDateId}
             selectedTimeId={selectedTimeId}
+            isLoading={isLoadingSlots}
             onDateChange={setSelectedDateId}
             onTimeChange={setSelectedTimeId}
           />
         </div>
 
         <footer className={styles.footer}>
+          {errorMessage ? (
+            <p className={styles.error} role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
           <BookingSummary
             discountedPrice={selectedTypeOption.priceDiscounted}
             originalPrice={selectedTypeOption.priceOriginal}

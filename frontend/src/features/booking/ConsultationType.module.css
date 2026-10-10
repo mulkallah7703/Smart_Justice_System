@@ -17,6 +17,14 @@
   overflow-y: auto;
 }
 
+.error {
+  margin: 0;
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body);
+  color: var(--color-danger);
+}
+
 .footer {
   display: flex;
   flex-direction: column;

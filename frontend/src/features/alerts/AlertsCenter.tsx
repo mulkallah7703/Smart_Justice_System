@@ -17,7 +17,8 @@ import styles from './AlertsCenter.module.css';
 const AlertsCenter = (): JSX.Element => {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<AlertFilterId>('all');
-  const { alerts, totalCount, isLoading, handleRead } = useAlerts(filter);
+  const { alerts, totalCount, isLoading, errorMessage, handleRead } =
+    useAlerts(filter);
 
   return (
     <ScreenShell variant="default">
@@ -34,8 +35,14 @@ const AlertsCenter = (): JSX.Element => {
         />
 
         <ScrollContent className={styles.content}>
+          {errorMessage ? (
+            <p className={styles.footer} role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
+
           <div className={styles.list}>
-            {!isLoading
+            {!isLoading && !errorMessage
               ? alerts.map((alert) => (
                   <AlertCard
                     key={alert.id}

@@ -1,1 +1,14 @@
-﻿// TODO: Implementation
+﻿import { Module } from '@nestjs/common';
+
+import { AuthModule } from '../auth/auth.module';
+import { AlertsController } from './alerts.controller';
+import { AlertsService } from './alerts.service';
+import { DeadlineWatcherService } from './deadline-watcher.service';
+
+@Module({
+  imports: [AuthModule],
+  controllers: [AlertsController],
+  providers: [AlertsService, DeadlineWatcherService],
+  exports: [AlertsService],
+})
+export class AlertsModule {}

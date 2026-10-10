@@ -10,7 +10,9 @@ interface InputProps {
   placeholder?: string;
   icon?: string;
   error?: string;
-  inputMode?: 'numeric' | 'text';
+  inputMode?: 'numeric' | 'text' | 'email';
+  type?: 'text' | 'password' | 'email';
+  autoComplete?: string;
   id?: string;
   className?: string;
 }
@@ -23,6 +25,8 @@ const Input = ({
   icon,
   error,
   inputMode = 'text',
+  type = 'text',
+  autoComplete,
   id = 'input-field',
   className = '',
 }: InputProps): JSX.Element => {
@@ -42,10 +46,12 @@ const Input = ({
         <input
           id={id}
           className={styles.input}
+          type={type}
           value={value}
           onChange={handleChange}
           placeholder={placeholder}
           inputMode={inputMode}
+          autoComplete={autoComplete}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
         />

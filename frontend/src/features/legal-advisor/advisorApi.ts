@@ -1,14 +1,18 @@
-Ôªøimport { ar } from '../../core/i18n/ar';
+import { ar } from '../../core/i18n/ar';
 import { endpoints } from '../../shared/api/endpoints';
+import { apiRequest } from '../../shared/api/httpClient';
+import { isMockApiMode } from '../../shared/api/mode';
+
+import { mapAdvisorAnswer, mapAdvisorJobPoll } from './mapAdvisor';
 
 import type {
-  AdvisorReportPoll,
-  AdvisoryReportData,
+  AdvisorAnswerView,
+  AdvisorJobPoll,
   AnalyzeResponse,
-  InitialOpinionData,
+  BackendAiJobStatus,
+  BackendAnswerResponse,
+  BackendRetrieveResponse,
 } from './advisor.types';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => {
@@ -17,209 +21,194 @@ const wait = (ms: number): Promise<void> =>
 
 const mockJobState = new Map<string, number>();
 
-export const resetAdvisorJobMock = (jobId: string): void => {
-  mockJobState.delete(jobId);
-};
-
-const mockOpinion = (jobId: string): InitialOpinionData => ({
-  jobId,
-  summaryTitle: ar.advisor.opinion.summaryTitle,
-  summaryBody: ar.advisor.opinion.summaryBody,
-  strengthLabel: ar.advisor.opinion.strengthLabel,
-  strengthValue: ar.advisor.opinion.strengthValue,
-  strengthScore: 82,
-  strengthLevel: 'strong',
-  findingsTitle: ar.advisor.opinion.findingsTitle,
-  findings: [
-    {
-      id: 'f1',
-      tone: 'success',
-      title: ar.advisor.opinion.findings.documented.title,
-      subtitle: ar.advisor.opinion.findings.documented.subtitle,
-      icon: 'check_circle',
-    },
-    {
-      id: 'f2',
-      tone: 'warning',
-      title: ar.advisor.opinion.findings.penalty.title,
-      subtitle: ar.advisor.opinion.findings.penalty.subtitle,
-      icon: 'warning',
-    },
-    {
-      id: 'f3',
-      tone: 'info',
-      title: ar.advisor.opinion.findings.demand.title,
-      subtitle: ar.advisor.opinion.findings.demand.subtitle,
-      icon: 'lightbulb',
-    },
-  ],
-  disclaimer: ar.advisor.opinion.disclaimer,
-  cta: ar.advisor.opinion.cta,
-});
-
-export const uploadDocument = async (
-  file: File,
-  onProgress?: (percent: number) => void,
-): Promise<{ documentId: string }> => {
-  if (!API_BASE_URL) {
-    for (let percent = 10; percent <= 100; percent += 10) {
-      await wait(120);
-      onProgress?.(percent);
-    }
-    return { documentId: `doc-${Date.now()}-${file.name}` };
+export const resetAdvisorJobMock = (jobId?: string): void => {
+  if (jobId) {
+    mockJobState.delete(jobId);
+    return;
   }
-
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch(`${API_BASE_URL}${endpoints.advisor.upload}`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error('DOCUMENT_UPLOAD_FAILED');
-  }
-
-  const json = (await response.json()) as { data: { documentId: string } };
-  onProgress?.(100);
-  return json.data;
+  mockJobState.clear();
 };
 
 export const startDocumentAnalysis = async (
   documentIds: string[],
 ): Promise<AnalyzeResponse> => {
-  if (!API_BASE_URL) {
+  if (isMockApiMode()) {
     await wait(400);
     return { jobId: `job-${Date.now()}` };
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoints.advisor.analyze}`, {
+  return apiRequest<AnalyzeResponse>(endpoints.advisor.analyze, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ documentIds }),
+    body: { documentIds },
   });
-
-  if (!response.ok) {
-    throw new Error('ADVISOR_ANALYZE_FAILED');
-  }
-
-  const json = (await response.json()) as { data: AnalyzeResponse };
-  return json.data;
 };
 
-export const pollAdvisorReport = async (
+export const pollAdvisorJob = async (
   jobId: string,
-): Promise<AdvisorReportPoll> => {
-  if (!API_BASE_URL) {
+): Promise<AdvisorJobPoll> => {
+  if (isMockApiMode()) {
     await wait(200);
     const tick = (mockJobState.get(jobId) ?? 0) + 1;
     mockJobState.set(jobId, tick);
 
-    if (tick <= 2) {
-      return { status: 'PROCESSING', progress: 67, stageIndex: 1 };
+    if (tick === 1) {
+      return {
+        jobId,
+        status: 'PENDING',
+        progress: 0,
+        stageIndex: 0,
+        errorCode: null,
+      };
+    }
+    if (tick === 2) {
+      return {
+        jobId,
+        status: 'PROCESSING',
+        progress: 40,
+        stageIndex: 1,
+        errorCode: null,
+      };
     }
     if (tick === 3) {
-      return { status: 'PROCESSING', progress: 90, stageIndex: 2 };
+      return {
+        jobId,
+        status: 'PROCESSING',
+        progress: 70,
+        stageIndex: 2,
+        errorCode: null,
+      };
     }
-    return { status: 'DONE', progress: 100, stageIndex: 2 };
+    return {
+      jobId,
+      status: 'DONE',
+      progress: 100,
+      stageIndex: 2,
+      errorCode: null,
+    };
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}${endpoints.advisor.report(jobId)}`,
+  const record = await apiRequest<BackendAiJobStatus>(
+    endpoints.advisor.jobs(jobId),
   );
-
-  if (!response.ok) {
-    throw new Error('ADVISOR_REPORT_POLL_FAILED');
-  }
-
-  const json = (await response.json()) as { data: AdvisorReportPoll };
-  return json.data;
+  return mapAdvisorJobPoll(record);
 };
 
-export const fetchInitialOpinion = async (
-  jobId: string,
-): Promise<InitialOpinionData> => {
-  if (!API_BASE_URL) {
+export const retrieveAdvisorEvidence = async (
+  query: string,
+): Promise<BackendRetrieveResponse> => {
+  if (isMockApiMode()) {
     await wait(250);
-    return mockOpinion(jobId || 'demo');
+    return {
+      query,
+      results: [
+        {
+          score: 0.91,
+          text: ar.advisor.opinion.mockEvidence,
+          provenance: {
+            documentId: 'doc-mock-pdf',
+            documentName: ar.advisor.upload.mock.pdfName,
+            documentPageId: 'page-1',
+            documentChunkId: 'chunk-1',
+            pageNumber: 1,
+            chunkIndex: 0,
+            startOffset: 0,
+            endOffset: 40,
+            pipelineVersion: 2,
+            embeddingModel: 'mock',
+            extractionMethod: 'TEXT_LAYER',
+            trust: 'TRUSTED',
+          },
+        },
+      ],
+      retrieval: {
+        collection: 'mock',
+        embeddingModel: 'mock',
+        embeddingDimensions: 8,
+        limit: 5,
+        returned: 1,
+        droppedCount: 0,
+      },
+    };
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}${endpoints.advisor.opinion(jobId)}`,
-  );
-
-  if (!response.ok) {
-    throw new Error('ADVISOR_OPINION_FAILED');
-  }
-
-  const json = (await response.json()) as { data: InitialOpinionData };
-  return json.data;
+  return apiRequest<BackendRetrieveResponse>(endpoints.advisor.retrieve, {
+    method: 'POST',
+    body: { query },
+  });
 };
 
-const mockAdvisoryReport = (jobId: string): AdvisoryReportData => ({
-  jobId,
-  brandTitle: ar.advisor.report.brandTitle,
-  brandSubtitle: ar.advisor.report.brandSubtitle,
-  reference: ar.advisor.report.reference,
-  dateHijri: ar.advisor.report.dateHijri,
-  watermark: ar.advisor.report.watermark,
-  sections: [
-    {
-      id: 'subject',
-      title: ar.advisor.report.sections.subject.title,
-      body: ar.advisor.report.sections.subject.body,
-    },
-    {
-      id: 'basis',
-      title: ar.advisor.report.sections.basis.title,
-      body: ar.advisor.report.sections.basis.body,
-    },
-    {
-      id: 'opinion',
-      title: ar.advisor.report.sections.opinion.title,
-      body: ar.advisor.report.sections.opinion.body,
-    },
-  ],
-  disclaimer: ar.advisor.report.disclaimer,
-});
-
-export const fetchAdvisoryReport = async (
-  jobId: string,
-): Promise<AdvisoryReportData> => {
-  if (!API_BASE_URL) {
+export const answerAdvisorQuery = async (
+  query: string,
+): Promise<AdvisorAnswerView> => {
+  if (isMockApiMode()) {
     await wait(300);
-    return mockAdvisoryReport(jobId || 'demo');
+    if (query.includes('insufficient') || query.includes('€Ì— ﬂ«›')) {
+      return mapAdvisorAnswer({
+        answer: ar.advisor.opinion.insufficientBody,
+        claims: [],
+        insufficientEvidence: true,
+        model: 'mock',
+      });
+    }
+
+    return mapAdvisorAnswer({
+      answer: ar.advisor.opinion.summaryBody,
+      claims: [
+        {
+          text: ar.advisor.opinion.findings.documented.title,
+          citations: [
+            {
+              evidenceId: 'E1',
+              documentId: 'doc-mock-pdf',
+              documentName: ar.advisor.upload.mock.pdfName,
+              pageNumber: 1,
+              chunkId: 'chunk-1',
+              startOffset: 0,
+              endOffset: 20,
+            },
+          ],
+        },
+        {
+          text: ar.advisor.opinion.findings.penalty.title,
+          citations: [
+            {
+              evidenceId: 'E1',
+              documentId: 'doc-mock-pdf',
+              documentName: ar.advisor.upload.mock.pdfName,
+              pageNumber: 2,
+              chunkId: 'chunk-1',
+              startOffset: 0,
+              endOffset: 20,
+            },
+          ],
+        },
+        {
+          text: ar.advisor.opinion.findings.demand.title,
+          citations: [
+            {
+              evidenceId: 'E1',
+              documentId: 'doc-mock-pdf',
+              documentName: ar.advisor.upload.mock.pdfName,
+              pageNumber: 3,
+              chunkId: 'chunk-1',
+              startOffset: 0,
+              endOffset: 20,
+            },
+          ],
+        },
+      ],
+      insufficientEvidence: false,
+      model: 'mock',
+    });
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}${endpoints.advisor.report(jobId)}`,
+  const record = await apiRequest<BackendAnswerResponse>(
+    endpoints.advisor.answer,
+    {
+      method: 'POST',
+      body: { query },
+      timeoutMs: 60_000,
+    },
   );
-
-  if (!response.ok) {
-    throw new Error('ADVISOR_REPORT_FAILED');
-  }
-
-  const json = (await response.json()) as { data: AdvisoryReportData };
-  return json.data;
-};
-
-export const downloadAdvisoryReportPdf = async (
-  jobId: string,
-): Promise<string | null> => {
-  if (!API_BASE_URL) {
-    await wait(200);
-    return null;
-  }
-
-  const response = await fetch(
-    `${API_BASE_URL}${endpoints.advisor.reportPdf(jobId)}`,
-  );
-
-  if (!response.ok) {
-    throw new Error('ADVISOR_REPORT_PDF_FAILED');
-  }
-
-  const json = (await response.json()) as { data: { url: string } };
-  return json.data.url;
+  return mapAdvisorAnswer(record);
 };

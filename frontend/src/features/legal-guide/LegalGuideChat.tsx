@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 
 import { ar } from '../../core/i18n/ar';
+import { isDomainLive } from '../../shared/api/mode';
 import ScreenShell from '../../shared/components/ScreenShell';
 
 import ChatBubble from './ChatBubble';
@@ -13,7 +14,16 @@ import styles from './LegalGuideChat.module.css';
 
 const LegalGuideChat = (): JSX.Element => {
   const navigate = useNavigate();
-  const { messages, isTyping, isSending, sendMessage } = useGuideChat();
+  const live = isDomainLive('guide');
+  const {
+    messages,
+    stage,
+    sessionId,
+    isTyping,
+    isSending,
+    errorMessage,
+    sendMessage,
+  } = useGuideChat();
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const quickReplyOptions = useMemo(
@@ -26,11 +36,29 @@ const LegalGuideChat = (): JSX.Element => {
 
   const lastMessage = messages[messages.length - 1];
   const showQuickReplies =
-    !isTyping && !isSending && lastMessage?.id === 'ai-followup';
+    !live &&
+    !isTyping &&
+    !isSending &&
+    lastMessage?.id === 'ai-followup';
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, showQuickReplies]);
+
+  useEffect(() => {
+    if (!live || !sessionId) {
+      return;
+    }
+    if (stage === 'SUMMARY') {
+      navigate(`/guide/summary/${encodeURIComponent(sessionId)}`, {
+        replace: true,
+      });
+      return;
+    }
+    if (stage === 'QUESTION') {
+      navigate('/guide/question', { replace: true });
+    }
+  }, [live, stage, sessionId, navigate]);
 
   return (
     <ScreenShell variant="default" noNav>
@@ -43,6 +71,12 @@ const LegalGuideChat = (): JSX.Element => {
 
         <div className={styles.chat}>
           <p className={styles.disclaimer}>{ar.guide.disclaimer}</p>
+
+          {errorMessage ? (
+            <p className={styles.errorBanner} role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
 
           <div className={styles.messages}>
             {messages.map((message) => (

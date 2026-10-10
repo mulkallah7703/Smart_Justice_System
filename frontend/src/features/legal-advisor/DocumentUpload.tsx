@@ -1,4 +1,4 @@
-﻿import { useNavigate } from 'react-router-dom';
+﻿import { useLocation, useNavigate } from 'react-router-dom';
 
 import { ar } from '../../core/i18n/ar';
 import Button from '../../shared/components/Button';
@@ -12,14 +12,26 @@ import styles from './DocumentUpload.module.css';
 
 const DocumentUpload = (): JSX.Element => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationError =
+    (location.state as { error?: string | boolean } | null)?.error;
   const {
     files,
     canAnalyze,
     isAnalyzing,
+    errorMessage,
     addFiles,
     removeFile,
     startAnalyze,
   } = useDocumentAnalysis();
+
+  const bannerError =
+    errorMessage ??
+    (locationError === 'TIMEOUT'
+      ? ar.advisor.errors.timeout
+      : locationError
+        ? ar.advisor.errors.failed
+        : null);
 
   const handleAnalyze = async (): Promise<void> => {
     const jobId = await startAnalyze();
@@ -42,13 +54,19 @@ const DocumentUpload = (): JSX.Element => {
             <p className={styles.heroSubtitle}>{ar.advisor.upload.subtitle}</p>
           </div>
 
+          {bannerError ? (
+            <p className={styles.errorBanner} role="alert">
+              {bannerError}
+            </p>
+          ) : null}
+
           <FileUploadZone
             title={ar.advisor.upload.zoneTitle}
             hint={ar.advisor.upload.zoneHint}
             filesLabel={ar.advisor.upload.filesBtn}
             cameraLabel={ar.advisor.upload.cameraBtn}
             onFiles={addFiles}
-            maxSizeMB={20}
+            maxSizeMB={10}
           />
 
           <div className={styles.filesSection}>
@@ -58,20 +76,29 @@ const DocumentUpload = (): JSX.Element => {
                 String(files.length),
               )}
             </p>
-            <div className={styles.list}>
-              {files.map((file) => (
-                <FileRow
-                  key={file.id}
-                  name={file.name}
-                  sizeMB={file.sizeMB}
-                  progress={file.progress}
-                  status={file.status}
-                  kind={file.kind}
-                  doneLabel={ar.advisor.upload.doneLabel}
-                  onRemove={() => removeFile(file.id)}
-                />
-              ))}
-            </div>
+            {files.length === 0 ? (
+              <div className={styles.emptyState}>
+                <p className={styles.emptyTitle}>
+                  {ar.advisor.upload.emptyTitle}
+                </p>
+                <p className={styles.emptyBody}>{ar.advisor.upload.emptyBody}</p>
+              </div>
+            ) : (
+              <div className={styles.list}>
+                {files.map((file) => (
+                  <FileRow
+                    key={file.id}
+                    name={file.name}
+                    sizeMB={file.sizeMB}
+                    progress={file.progress}
+                    status={file.status}
+                    kind={file.kind}
+                    doneLabel={ar.advisor.upload.doneLabel}
+                    onRemove={() => removeFile(file.id)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

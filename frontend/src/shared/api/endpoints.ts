@@ -1,5 +1,8 @@
 ﻿export const endpoints = {
   auth: {
+    register: '/auth/register',
+    login: '/auth/login',
+    /** FUTURE Nafath — retained; not used by Login/Register UI. */
     nafathVerify: '/auth/nafath/verify',
   },
   alerts: {
@@ -9,28 +12,30 @@
   guide: {
     start: '/ai/guide/start',
     answer: '/ai/guide/answer',
-    summary: (sessionId: string) => `/ai/guide/summary/${sessionId}`,
+    summary: (sessionId: string) =>
+      `/ai/guide/summary/${encodeURIComponent(sessionId)}`,
   },
   advisor: {
-    upload: '/documents/upload',
     analyze: '/ai/advisor/analyze',
-    report: (jobId: string) => `/ai/advisor/report/${jobId}`,
-    reportPdf: (jobId: string) => `/ai/advisor/report/${jobId}?format=pdf`,
-    opinion: (jobId: string) => `/ai/advisor/opinion/${jobId}`,
+    jobs: (jobId: string) => `/ai/advisor/jobs/${encodeURIComponent(jobId)}`,
+    retrieve: '/ai/advisor/retrieve',
+    answer: '/ai/advisor/answer',
   },
   lawyers: {
     list: '/lawyers',
-    detail: (id: string) => `/lawyers/${id}`,
-    availability: (id: string) => `/lawyers/${id}/availability`,
+    detail: (id: string) => `/lawyers/${encodeURIComponent(id)}`,
+    availability: (id: string) =>
+      `/lawyers/${encodeURIComponent(id)}/availability`,
   },
   booking: {
-    create: '/consultations/book',
+    create: '/consultations',
+    detail: (id: string) => `/consultations/${encodeURIComponent(id)}`,
   },
   payments: {
     summary: (consultationId: string) =>
-      `/payments/summary/${consultationId}`,
+      `/payments/summary/${encodeURIComponent(consultationId)}`,
     initiate: '/payments/initiate',
-    detail: (id: string) => `/payments/${id}`,
+    detail: (id: string) => `/payments/${encodeURIComponent(id)}`,
   },
   judicialCard: {
     detail: '/judicial-card',
@@ -39,9 +44,16 @@
   },
   legalFile: {
     cases: '/cases',
+    case: (id: string) => `/cases/${encodeURIComponent(id)}`,
     appointments: '/cases?type=hearing',
     documents: '/documents',
     notifications: '/alerts?all=true',
+  },
+  documents: {
+    list: '/documents',
+    upload: '/documents',
+    detail: (id: string) => `/documents/${encodeURIComponent(id)}`,
+    download: (id: string) => `/documents/${encodeURIComponent(id)}/download`,
   },
   kiosk: {
     sessionStart: '/kiosk/session/start',

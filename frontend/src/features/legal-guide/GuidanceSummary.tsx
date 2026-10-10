@@ -16,7 +16,7 @@ import styles from './GuidanceSummary.module.css';
 const GuidanceSummary = (): JSX.Element => {
   const navigate = useNavigate();
   const { sessionId = 'demo' } = useParams<{ sessionId: string }>();
-  const { summary, isLoading } = useGuidanceSummary(sessionId);
+  const { summary, isLoading, errorMessage } = useGuidanceSummary(sessionId);
 
   return (
     <ScreenShell variant="default" noNav>
@@ -27,6 +27,12 @@ const GuidanceSummary = (): JSX.Element => {
         />
 
         <div className={styles.content}>
+          {errorMessage ? (
+            <p className={styles.errorBanner} role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
+
           {!isLoading && summary ? (
             <>
               <AlertBanner

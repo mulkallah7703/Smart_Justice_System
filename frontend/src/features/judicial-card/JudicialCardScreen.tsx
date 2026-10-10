@@ -16,6 +16,7 @@ const JudicialCardScreen = (): JSX.Element => {
     card,
     isLoading,
     isFlipped,
+    errorMessage,
     toggleFlip,
     showIdentity,
     qrPayload,
@@ -29,7 +30,13 @@ const JudicialCardScreen = (): JSX.Element => {
         </header>
 
         <div className={styles.content}>
-          {!isLoading && card && qrPayload ? (
+          {errorMessage ? (
+            <p className={styles.hint} role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
+
+          {!isLoading && !errorMessage && card && qrPayload ? (
             <>
               <CardVisual
                 card={card}

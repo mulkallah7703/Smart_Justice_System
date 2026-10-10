@@ -1,5 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { getUserFacingAlertError } from '../../shared/api/errors';
+
 import { fetchAlerts, markAlertRead } from './alertsApi';
 import { alertsStore } from './alertsStore';
 
@@ -9,6 +11,7 @@ interface UseAlertsResult {
   alerts: Alert[];
   totalCount: number;
   isLoading: boolean;
+  errorMessage: string | null;
   handleRead: (id: string) => void;
 }
 
@@ -28,12 +31,15 @@ const filterAlerts = (alerts: Alert[], filter: AlertFilterId): Alert[] => {
 export const useAlerts = (filter: AlertFilterId): UseAlertsResult => {
   const [allAlerts, setAllAlerts] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const setUnreadCount = alertsStore((state) => state.setUnreadCount);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadAlerts = async (): Promise<void> => {
+      setIsLoading(true);
+      setErrorMessage(null);
       try {
         const data = await fetchAlerts();
         if (cancelled) {
@@ -42,6 +48,12 @@ export const useAlerts = (filter: AlertFilterId): UseAlertsResult => {
 
         setAllAlerts(data);
         setUnreadCount(data.filter((alert) => !alert.isRead).length);
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(getUserFacingAlertError(error));
+          setAllAlerts([]);
+          setUnreadCount(0);
+        }
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -80,6 +92,7 @@ export const useAlerts = (filter: AlertFilterId): UseAlertsResult => {
     alerts,
     totalCount: allAlerts.length,
     isLoading,
+    errorMessage,
     handleRead,
   };
 };

@@ -6,6 +6,26 @@ export type LawyerSpecialty =
 
 export type AvailabilityTone = 'available' | 'soon';
 
+/** Shape returned by GET /lawyers. Never rendered directly. */
+export interface BackendLawyer {
+  id: string;
+  name: string | null;
+  specialties: string[];
+  city: string;
+  rating: number;
+  reviewCount: number;
+  experienceYrs: number;
+  priceFrom: number;
+  isAvailable: boolean;
+  isVerified: boolean;
+}
+
+/** Shape returned by GET /lawyers/:id. */
+export interface BackendLawyerDetail extends BackendLawyer {
+  licenseNumber: string;
+  bio: string | null;
+}
+
 export interface Lawyer {
   id: string;
   name: string;

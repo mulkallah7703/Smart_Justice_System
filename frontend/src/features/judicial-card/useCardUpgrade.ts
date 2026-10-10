@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { getUserFacingJudicialCardError } from '../../shared/api/errors';
+
 import {
   getJudicialCard,
   getTierOptions,
@@ -22,6 +24,7 @@ interface UseCardUpgradeResult {
   isLoading: boolean;
   isSubmitting: boolean;
   canUpgrade: boolean;
+  errorMessage: string | null;
   submitUpgrade: () => Promise<boolean>;
 }
 
@@ -30,22 +33,25 @@ export const useCardUpgrade = (): UseCardUpgradeResult => {
   const [selectedTier, setSelectedTier] = useState<CardTier>('GOLD');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
 
     const load = async (): Promise<void> => {
       setIsLoading(true);
+      setErrorMessage(null);
       try {
         const card = await getJudicialCard();
         if (active) {
           setCurrentTier(card.tier);
           setSelectedTier('GOLD');
         }
-      } catch {
+      } catch (error) {
         if (active) {
           setCurrentTier('SILVER');
           setSelectedTier('GOLD');
+          setErrorMessage(getUserFacingJudicialCardError(error));
         }
       } finally {
         if (active) {
@@ -77,13 +83,15 @@ export const useCardUpgrade = (): UseCardUpgradeResult => {
     }
 
     setIsSubmitting(true);
+    setErrorMessage(null);
     try {
       const result = await upgradeJudicialCard({ tier: selectedTier });
       if (result.success) {
         setCurrentTier(result.tier);
       }
       return result.success;
-    } catch {
+    } catch (error) {
+      setErrorMessage(getUserFacingJudicialCardError(error));
       return false;
     } finally {
       setIsSubmitting(false);
@@ -98,6 +106,7 @@ export const useCardUpgrade = (): UseCardUpgradeResult => {
     isLoading,
     isSubmitting,
     canUpgrade,
+    errorMessage,
     submitUpgrade,
   };
 };

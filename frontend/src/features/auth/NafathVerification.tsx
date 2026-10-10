@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 
 import { ar } from '../../core/i18n/ar';
+import { getUserFacingAuthError } from '../../shared/api/errors';
 import AlertBanner from '../../shared/components/AlertBanner';
 import Button from '../../shared/components/Button';
 import Header from '../../shared/components/Header';
@@ -63,8 +64,8 @@ const NafathVerification = (): JSX.Element => {
 
       authStore.getState().setTokens(accessToken);
       navigate('/auth/success', { replace: true });
-    } catch {
-      setSubmitError(ar.nafath.verifyError);
+    } catch (error) {
+      setSubmitError(getUserFacingAuthError(error));
     } finally {
       setIsSubmitting(false);
     }

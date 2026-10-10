@@ -31,7 +31,7 @@ const ActiveCasesList = ({ cases }: ActiveCasesListProps): JSX.Element => {
             status={caseItem.status}
             statusVariant={caseItem.statusVariant}
             icon={caseItem.icon}
-            onClick={() => navigate('/legal-file')}
+            onClick={() => navigate(`/legal-file/${caseItem.id}`)}
           />
         ))}
       </div>

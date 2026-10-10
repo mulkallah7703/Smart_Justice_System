@@ -20,6 +20,7 @@ const CardTierUpgrade = (): JSX.Element => {
     isLoading,
     isSubmitting,
     canUpgrade,
+    errorMessage,
     submitUpgrade,
   } = useCardUpgrade();
 
@@ -51,6 +52,11 @@ const CardTierUpgrade = (): JSX.Element => {
         </header>
 
         <div className={styles.content}>
+          {errorMessage ? (
+            <p className={styles.subtitle} role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
           {!isLoading ? (
             <TierCompare
               options={tiers}

@@ -39,6 +39,13 @@
   overflow-y: auto;
 }
 
+.emptyAnswer {
+  margin: 0;
+  font-size: var(--font-size-body-sm);
+  line-height: var(--line-height-body);
+  color: var(--color-text-muted);
+}
+
 .footer {
   display: grid;
   grid-template-columns: 1fr 1fr;

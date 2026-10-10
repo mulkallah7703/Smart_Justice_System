@@ -1,1 +1,76 @@
-﻿# TODO
+name: sjs-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sjs-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sjs
+      POSTGRES_PASSWORD: sjs_dev_only_change_me
+      POSTGRES_DB: sjs_dev
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - sjs_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sjs -d sjs_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: sjs-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - sjs_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    container_name: sjs-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: sjs_minio_dev
+      MINIO_ROOT_PASSWORD: sjs_minio_dev_secret_local_only
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - sjs_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.5
+    container_name: sjs-qdrant
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - sjs_qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  sjs_pg_data:
+  sjs_redis_data:
+  sjs_minio_data:
+  sjs_qdrant_data:

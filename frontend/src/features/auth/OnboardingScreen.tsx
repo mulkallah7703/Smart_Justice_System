@@ -12,7 +12,7 @@ const OnboardingScreen = (): JSX.Element => {
   const navigate = useNavigate();
 
   const handleContinue = (): void => {
-    navigate('/auth/verify');
+    navigate('/login');
   };
 
   return (

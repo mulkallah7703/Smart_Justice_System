@@ -1,7 +1,8 @@
-﻿import { useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { ar } from '../../core/i18n/ar';
+import { getUserFacingGuideError } from '../../shared/api/errors';
 import AlertBanner from '../../shared/components/AlertBanner';
 import Button from '../../shared/components/Button';
 import Header from '../../shared/components/Header';
@@ -10,6 +11,7 @@ import ScreenShell from '../../shared/components/ScreenShell';
 
 import GuideProgress from './GuideProgress';
 import { sendGuideAnswer } from './guideApi';
+import { loadGuideSessionId } from './guideSession';
 import styles from './ClarifyingQuestion.module.css';
 
 interface QuestionOption {
@@ -22,6 +24,7 @@ const ClarifyingQuestion = (): JSX.Element => {
   const navigate = useNavigate();
   const currentStep = 2;
   const totalSteps = 4;
+  const sessionId = loadGuideSessionId();
 
   const options = useMemo<QuestionOption[]>(
     () => [
@@ -39,17 +42,35 @@ const ClarifyingQuestion = (): JSX.Element => {
 
   const [selectedId, setSelectedId] = useState<string>('documented');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!sessionId) {
+      navigate('/guide', { replace: true });
+    }
+  }, [sessionId, navigate]);
 
   const handleConfirm = async (): Promise<void> => {
-    if (!selectedId || isSubmitting) {
+    if (!selectedId || isSubmitting || !sessionId) {
       return;
     }
 
+    const selected = options.find((option) => option.id === selectedId);
+    const answerText = selected?.label ?? selectedId;
+
     setIsSubmitting(true);
+    setErrorMessage(null);
     try {
-      await sendGuideAnswer(`guide-question-${Date.now()}`, selectedId);
-      navigate('/guide');
-    } catch {
+      const response = await sendGuideAnswer(sessionId, answerText);
+      if (response.stage === 'SUMMARY') {
+        navigate(`/guide/summary/${encodeURIComponent(sessionId)}`, {
+          replace: true,
+        });
+        return;
+      }
+      navigate('/guide', { replace: true });
+    } catch (error: unknown) {
+      setErrorMessage(getUserFacingGuideError(error));
       setIsSubmitting(false);
     }
   };
@@ -72,6 +93,12 @@ const ClarifyingQuestion = (): JSX.Element => {
         <GuideProgress currentStep={currentStep} totalSteps={totalSteps} />
 
         <div className={styles.content}>
+          {errorMessage ? (
+            <p className={styles.errorBanner} role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
+
           <div className={styles.hint}>
             <Icon
               name="auto_awesome"

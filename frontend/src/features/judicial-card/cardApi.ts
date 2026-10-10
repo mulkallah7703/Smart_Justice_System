@@ -1,5 +1,14 @@
-﻿import { ar } from '../../core/i18n/ar';
+import { ar } from '../../core/i18n/ar';
 import { endpoints } from '../../shared/api/endpoints';
+import { apiRequest } from '../../shared/api/httpClient';
+import { isMockApiMode } from '../../shared/api/mode';
+
+import {
+  mapJudicialCard,
+  mapJudicialCardQr,
+  type BackendJudicialCard,
+  type BackendJudicialCardQr,
+} from './mapJudicialCard';
 
 import type {
   CardQrData,
@@ -10,42 +19,36 @@ import type {
   UpgradeCardResponse,
 } from './card.types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
-
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
 
+const mockCard = (): JudicialCardData => ({
+  cardNumber: ar.judicialCard.mock.cardNumber,
+  holderName: ar.judicialCard.mock.holderName,
+  nationalId: ar.judicialCard.mock.nationalId,
+  tier: 'SILVER',
+  tierLabel: ar.judicialCard.mock.tierLabel,
+  discountPct: 25,
+  brandName: ar.judicialCard.brandName,
+  qrPayload: ar.judicialCard.mock.qrPayload,
+});
+
 export const getJudicialCard = async (): Promise<JudicialCardData> => {
-  if (!API_BASE_URL) {
+  if (isMockApiMode()) {
     await wait(200);
-    return {
-      cardNumber: ar.judicialCard.mock.cardNumber,
-      holderName: ar.judicialCard.mock.holderName,
-      nationalId: ar.judicialCard.mock.nationalId,
-      tier: 'SILVER',
-      tierLabel: ar.judicialCard.mock.tierLabel,
-      discountPct: 25,
-      brandName: ar.judicialCard.brandName,
-      qrPayload: ar.judicialCard.mock.qrPayload,
-    };
+    return mockCard();
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}${endpoints.judicialCard.detail}`,
+  const data = await apiRequest<BackendJudicialCard>(
+    endpoints.judicialCard.detail,
   );
-
-  if (!response.ok) {
-    throw new Error('JUDICIAL_CARD_FAILED');
-  }
-
-  const json = (await response.json()) as { data: JudicialCardData };
-  return json.data;
+  return mapJudicialCard(data);
 };
 
 export const getCardQr = async (): Promise<CardQrData> => {
-  if (!API_BASE_URL) {
+  if (isMockApiMode()) {
     await wait(150);
     return {
       payload: ar.judicialCard.mock.qrPayload,
@@ -53,14 +56,10 @@ export const getCardQr = async (): Promise<CardQrData> => {
     };
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoints.judicialCard.qr}`);
-
-  if (!response.ok) {
-    throw new Error('JUDICIAL_CARD_QR_FAILED');
-  }
-
-  const json = (await response.json()) as { data: CardQrData };
-  return json.data;
+  const data = await apiRequest<BackendJudicialCardQr>(
+    endpoints.judicialCard.qr,
+  );
+  return mapJudicialCardQr(data);
 };
 
 export const getTierOptions = (currentTier: CardTier): TierOption[] => [
@@ -102,24 +101,17 @@ export const getTierOptions = (currentTier: CardTier): TierOption[] => [
 export const upgradeJudicialCard = async (
   payload: UpgradeCardPayload,
 ): Promise<UpgradeCardResponse> => {
-  if (!API_BASE_URL) {
+  if (isMockApiMode()) {
     await wait(500);
     return { tier: payload.tier, success: true };
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}${endpoints.judicialCard.upgrade}`,
+  const data = await apiRequest<UpgradeCardResponse>(
+    endpoints.judicialCard.upgrade,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: { tier: payload.tier },
     },
   );
-
-  if (!response.ok) {
-    throw new Error('JUDICIAL_CARD_UPGRADE_FAILED');
-  }
-
-  const json = (await response.json()) as { data: UpgradeCardResponse };
-  return json.data;
+  return data;
 };

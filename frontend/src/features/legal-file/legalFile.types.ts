@@ -20,8 +20,9 @@ export interface LegalCase {
   id: string;
   title: string;
   subtitle: string;
+  caseNumber: string;
   status: string;
   statusVariant: StatusBadgeVariant;
   accent: CaseAccent;
-  footer: LegalCaseFooter;
+  footer: LegalCaseFooter | null;
 }

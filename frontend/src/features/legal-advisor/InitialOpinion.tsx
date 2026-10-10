@@ -5,18 +5,33 @@ import AICard from '../../shared/components/AICard';
 import Button from '../../shared/components/Button';
 import Header from '../../shared/components/Header';
 import ScreenShell from '../../shared/components/ScreenShell';
-import StrengthMeter from '../../shared/components/StrengthMeter';
 
 import FindingCard from './FindingCard';
 import OpinionDisclaimer from './OpinionDisclaimer';
-import { useInitialOpinion } from './useInitialOpinion';
+import { useAdvisorQuestion } from './useAdvisor';
 import styles from './InitialOpinion.module.css';
 
 const InitialOpinion = (): JSX.Element => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const jobId = searchParams.get('jobId') ?? 'demo';
-  const { opinion, isLoading } = useInitialOpinion(jobId);
+  const jobId = searchParams.get('jobId') ?? '';
+  const {
+    query,
+    setQuery,
+    phase,
+    answer,
+    findings,
+    errorMessage,
+    isBusy,
+    submit,
+  } = useAdvisorQuestion(jobId || 'demo');
+
+  const loadingLabel =
+    phase === 'retrieving'
+      ? ar.advisor.opinion.retrieving
+      : phase === 'answering'
+        ? ar.advisor.opinion.answering
+        : null;
 
   return (
     <ScreenShell variant="default" noNav>
@@ -27,39 +42,91 @@ const InitialOpinion = (): JSX.Element => {
         />
 
         <div className={styles.content}>
-          {!isLoading && opinion ? (
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>
+              {ar.advisor.opinion.readyTitle}
+            </h2>
+            <p className={styles.readyBody}>{ar.advisor.opinion.readyBody}</p>
+          </div>
+
+          <label className={styles.questionField}>
+            <span className={styles.questionLabel}>
+              {ar.advisor.opinion.questionLabel}
+            </span>
+            <textarea
+              className={styles.questionInput}
+              value={query}
+              disabled={isBusy}
+              rows={4}
+              placeholder={ar.advisor.opinion.questionPlaceholder}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+
+          <Button
+            variant="ai"
+            size="md"
+            fullWidth
+            icon="auto_awesome"
+            iconFilled
+            disabled={isBusy || !query.trim()}
+            onClick={() => {
+              void submit();
+            }}
+          >
+            {ar.advisor.opinion.askCta}
+          </Button>
+
+          {loadingLabel ? (
+            <p className={styles.status} role="status">
+              {loadingLabel}
+            </p>
+          ) : null}
+
+          {errorMessage ? (
+            <p className={styles.error} role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
+
+          {answer?.insufficientEvidence ? (
+            <AICard
+              title={ar.advisor.opinion.insufficientTitle}
+              body={ar.advisor.opinion.insufficientBody}
+              icon="info"
+            />
+          ) : null}
+
+          {answer && !answer.insufficientEvidence ? (
             <>
               <AICard
-                title={opinion.summaryTitle}
-                body={opinion.summaryBody}
+                title={ar.advisor.opinion.answerTitle}
+                body={answer.answer}
                 icon="auto_awesome"
-              >
-                <StrengthMeter
-                  score={opinion.strengthScore}
-                  label={opinion.strengthLabel}
-                  valueLabel={opinion.strengthValue}
-                  level={opinion.strengthLevel}
-                />
-              </AICard>
+              />
 
-              <div className={styles.section}>
-                <h2 className={styles.sectionTitle}>{opinion.findingsTitle}</h2>
-                <div className={styles.list}>
-                  {opinion.findings.map((finding) => (
-                    <FindingCard
-                      key={finding.id}
-                      title={finding.title}
-                      subtitle={finding.subtitle}
-                      icon={finding.icon}
-                      tone={finding.tone}
-                    />
-                  ))}
+              {findings.length > 0 ? (
+                <div className={styles.section}>
+                  <h2 className={styles.sectionTitle}>
+                    {ar.advisor.opinion.claimsTitle}
+                  </h2>
+                  <div className={styles.list}>
+                    {findings.map((finding) => (
+                      <FindingCard
+                        key={finding.id}
+                        title={finding.title}
+                        subtitle={finding.subtitle}
+                        icon={finding.icon}
+                        tone={finding.tone}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-
-              <OpinionDisclaimer message={opinion.disclaimer} />
+              ) : null}
             </>
           ) : null}
+
+          <OpinionDisclaimer message={ar.advisor.opinion.disclaimer} />
         </div>
 
         <div className={styles.footer}>
@@ -69,9 +136,9 @@ const InitialOpinion = (): JSX.Element => {
             fullWidth
             icon="description"
             className={styles.cta}
-            disabled={!opinion}
+            disabled={!answer}
             onClick={() =>
-              navigate(`/advisor/report/${opinion?.jobId ?? jobId}`)
+              navigate(`/advisor/report/${encodeURIComponent(jobId || 'demo')}`)
             }
           >
             {ar.advisor.opinion.cta}

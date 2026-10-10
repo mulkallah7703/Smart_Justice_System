@@ -46,3 +46,12 @@
   flex-direction: column;
   gap: var(--layout-card-gap);
 }
+
+.message {
+  margin: 0;
+  padding: var(--space-4) 0;
+  font-size: var(--font-size-body-sm);
+  line-height: var(--line-height-body);
+  color: var(--color-text-muted);
+  text-align: center;
+}

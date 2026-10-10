@@ -1,4 +1,8 @@
-﻿import CaseCard from '../../shared/components/CaseCard';
+﻿import { useNavigate } from 'react-router-dom';
+
+import CaseCard from '../../shared/components/CaseCard';
+import EmptyState from '../../shared/components/EmptyState';
+import { ar } from '../../core/i18n/ar';
 
 import AddCaseCard from './AddCaseCard';
 
@@ -16,8 +20,17 @@ const CasesTab = ({
   isLoading,
   onAddCase,
 }: CasesTabProps): JSX.Element => {
+  const navigate = useNavigate();
+
   return (
     <div className={styles.list}>
+      {!isLoading && cases.length === 0 ? (
+        <EmptyState
+          icon="domain"
+          title={ar.legalFile.empty.cases.title}
+          body={ar.legalFile.empty.cases.body}
+        />
+      ) : null}
       {!isLoading
         ? cases.map((item) => (
             <CaseCard
@@ -28,7 +41,8 @@ const CasesTab = ({
               status={item.status}
               statusVariant={item.statusVariant}
               accent={item.accent}
-              footer={item.footer}
+              footer={item.footer ?? undefined}
+              onClick={() => navigate(`/legal-file/${item.id}`)}
             />
           ))
         : null}

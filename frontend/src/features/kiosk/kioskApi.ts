@@ -1,5 +1,16 @@
 import { ar } from '../../core/i18n/ar';
 import { endpoints } from '../../shared/api/endpoints';
+import { apiRequest } from '../../shared/api/httpClient';
+import { isMockApiMode } from '../../shared/api/mode';
+
+import {
+  mapKioskPrint,
+  mapKioskScan,
+  mapKioskSession,
+  type BackendKioskPrint,
+  type BackendKioskScan,
+  type BackendKioskSession,
+} from './mapKiosk';
 
 import type {
   KioskQuickService,
@@ -8,7 +19,6 @@ import type {
   KioskSession,
 } from './kiosk.types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 const DEVICE_ID = 'kiosk-lobby-01';
 
 const wait = (ms: number): Promise<void> =>
@@ -35,7 +45,7 @@ export const getQuickServices = (): KioskQuickService[] => [
 ];
 
 export const startKioskSession = async (): Promise<KioskSession> => {
-  if (!API_BASE_URL) {
+  if (isMockApiMode()) {
     await wait(200);
     return {
       sessionId: `ks-${Date.now()}`,
@@ -43,24 +53,20 @@ export const startKioskSession = async (): Promise<KioskSession> => {
     };
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoints.kiosk.sessionStart}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ deviceId: DEVICE_ID }),
-  });
-
-  if (!response.ok) {
-    throw new Error('KIOSK_SESSION_FAILED');
-  }
-
-  const json = (await response.json()) as { data: KioskSession };
-  return json.data;
+  const data = await apiRequest<BackendKioskSession>(
+    endpoints.kiosk.sessionStart,
+    {
+      method: 'POST',
+      body: { deviceId: DEVICE_ID },
+    },
+  );
+  return mapKioskSession(data);
 };
 
 export const scanKioskIdentity = async (
   payload: KioskScanPayload,
 ): Promise<KioskScanResult> => {
-  if (!API_BASE_URL) {
+  if (isMockApiMode()) {
     await wait(400);
     return {
       success: true,
@@ -68,16 +74,33 @@ export const scanKioskIdentity = async (
     };
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoints.kiosk.scan}`, {
+  const data = await apiRequest<BackendKioskScan>(endpoints.kiosk.scan, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: {
+      sessionId: payload.sessionId,
+      mode: payload.mode,
+    },
   });
+  return mapKioskScan(data);
+};
 
-  if (!response.ok) {
-    throw new Error('KIOSK_SCAN_FAILED');
+/**
+ * Documented print contract. The current Kiosk UI does not collect a
+ * documentId yet, so this is available for integration without redesigning
+ * the quick-services panel.
+ */
+export const printKioskDocument = async (
+  sessionId: string,
+  documentId: string,
+): Promise<{ success: boolean }> => {
+  if (isMockApiMode()) {
+    await wait(300);
+    return { success: true };
   }
 
-  const json = (await response.json()) as { data: KioskScanResult };
-  return json.data;
+  const data = await apiRequest<BackendKioskPrint>(endpoints.kiosk.print, {
+    method: 'POST',
+    body: { sessionId, documentId },
+  });
+  return mapKioskPrint(data);
 };

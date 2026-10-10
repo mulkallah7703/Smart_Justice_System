@@ -1,18 +1,40 @@
-﻿import { ar } from '../../core/i18n/ar';
+import { ar } from '../../core/i18n/ar';
 import { endpoints } from '../../shared/api/endpoints';
+import { apiRequest } from '../../shared/api/httpClient';
+import { isMockApiMode } from '../../shared/api/mode';
+
+import {
+  mapGuideAnswer,
+  mapGuideStart,
+  mapGuideSummary,
+  type BackendGuideAnswer,
+  type BackendGuideStart,
+  type BackendGuideSummary,
+} from './mapGuide';
+import { saveGuideSessionId } from './guideSession';
 
 import type {
   GuideAnswerResponse,
+  GuideStage,
   GuideStartResponse,
   GuideSummary,
 } from './guide.types';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
+
+/** Mock answer count per session ? CHAT / QUESTION / SUMMARY. */
+const mockAnswerCount = new Map<string, number>();
+
+export const resetGuideMock = (sessionId?: string): void => {
+  if (sessionId) {
+    mockAnswerCount.delete(sessionId);
+    return;
+  }
+  mockAnswerCount.clear();
+};
 
 const mockSummary = (sessionId: string): GuideSummary => ({
   sessionId,
@@ -51,76 +73,80 @@ const mockSummary = (sessionId: string): GuideSummary => ({
   ],
 });
 
+const resolveMockStage = (count: number): GuideStage => {
+  if (count <= 0) {
+    return 'CHAT';
+  }
+  if (count === 1) {
+    return 'QUESTION';
+  }
+  return 'SUMMARY';
+};
+
 export const startGuideSession = async (
   initialMessage?: string,
 ): Promise<GuideStartResponse> => {
-  if (!API_BASE_URL) {
+  if (isMockApiMode()) {
     await wait(400);
-    return {
-      sessionId: `guide-${Date.now()}`,
+    const sessionId = `guide-${Date.now()}`;
+    resetGuideMock(sessionId);
+    const result = {
+      sessionId,
       reply: initialMessage
         ? ar.guide.replies.afterUser
         : ar.guide.messages.welcome,
     };
+    saveGuideSessionId(result.sessionId);
+    return result;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoints.guide.start}`, {
+  const body =
+    initialMessage !== undefined && initialMessage.trim().length > 0
+      ? { initialMessage: initialMessage.trim() }
+      : {};
+
+  const record = await apiRequest<BackendGuideStart>(endpoints.guide.start, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ initialMessage }),
+    body,
   });
-
-  if (!response.ok) {
-    throw new Error('GUIDE_START_FAILED');
-  }
-
-  const json = (await response.json()) as { data: GuideStartResponse };
-  return json.data;
+  const mapped = mapGuideStart(record);
+  saveGuideSessionId(mapped.sessionId);
+  return mapped;
 };
 
 export const sendGuideAnswer = async (
   sessionId: string,
   answer: string,
 ): Promise<GuideAnswerResponse> => {
-  if (!API_BASE_URL) {
+  if (isMockApiMode()) {
     await wait(900);
+    const next = (mockAnswerCount.get(sessionId) ?? 0) + 1;
+    mockAnswerCount.set(sessionId, next);
+    const stage = resolveMockStage(next);
     return {
       sessionId,
       reply: ar.guide.replies.afterUser,
-      stage: 'CHAT',
+      stage,
     };
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoints.guide.answer}`, {
+  const record = await apiRequest<BackendGuideAnswer>(endpoints.guide.answer, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId, answer }),
+    body: { sessionId, answer },
   });
-
-  if (!response.ok) {
-    throw new Error('GUIDE_ANSWER_FAILED');
-  }
-
-  const json = (await response.json()) as { data: GuideAnswerResponse };
-  return json.data;
+  return mapGuideAnswer(record);
 };
 
 export const fetchGuideSummary = async (
   sessionId: string,
 ): Promise<GuideSummary> => {
-  if (!API_BASE_URL) {
+  if (isMockApiMode()) {
     await wait(300);
     return mockSummary(sessionId || 'demo');
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}${endpoints.guide.summary(sessionId)}`,
+  const record = await apiRequest<BackendGuideSummary>(
+    endpoints.guide.summary(sessionId),
   );
-
-  if (!response.ok) {
-    throw new Error('GUIDE_SUMMARY_FAILED');
-  }
-
-  const json = (await response.json()) as { data: GuideSummary };
-  return json.data;
+  return mapGuideSummary(record);
 };

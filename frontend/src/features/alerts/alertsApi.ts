@@ -1,9 +1,11 @@
-import { ar } from '../../core/i18n/ar';
 import { endpoints } from '../../shared/api/endpoints';
+import { apiRequest } from '../../shared/api/httpClient';
+import { isMockApiMode } from '../../shared/api/mode';
+import { ar } from '../../core/i18n/ar';
+
+import { mapAlert, type BackendAlert } from './mapAlert';
 
 import type { Alert } from './alerts.types';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => {
@@ -88,32 +90,22 @@ const mockAlerts = (): Alert[] => [
 ];
 
 export const fetchAlerts = async (): Promise<Alert[]> => {
-  if (!API_BASE_URL) {
+  if (isMockApiMode()) {
     await wait(300);
     return mockAlerts();
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoints.alerts.list}`);
-
-  if (!response.ok) {
-    throw new Error('ALERTS_FETCH_FAILED');
-  }
-
-  const json = (await response.json()) as { data: Alert[] };
-  return json.data;
+  const data = await apiRequest<BackendAlert[]>(endpoints.alerts.list);
+  return data.map(mapAlert);
 };
 
 export const markAlertRead = async (id: string): Promise<void> => {
-  if (!API_BASE_URL) {
+  if (isMockApiMode()) {
     await wait(200);
     return;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoints.alerts.markRead(id)}`, {
+  await apiRequest<BackendAlert>(endpoints.alerts.markRead(id), {
     method: 'PATCH',
   });
-
-  if (!response.ok) {
-    throw new Error('ALERT_MARK_READ_FAILED');
-  }
 };

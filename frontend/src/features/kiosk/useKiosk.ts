@@ -1,5 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { getUserFacingKioskError } from '../../shared/api/errors';
+
 import {
   getQuickServices,
   scanKioskIdentity,
@@ -20,6 +22,7 @@ interface UseKioskResult {
   isBusy: boolean;
   lastAction: string | null;
   authMode: KioskAuthMode;
+  errorMessage: string | null;
   scanQr: () => Promise<void>;
   tapCard: () => Promise<void>;
   runQuickService: (id: KioskQuickServiceId) => void;
@@ -33,6 +36,7 @@ export const useKiosk = (): UseKioskResult => {
   const [isBusy, setIsBusy] = useState(false);
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<KioskAuthMode>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [languageLabel, setLanguageLabel] = useState('EN / عربي');
 
   const services = useMemo(() => getQuickServices(), []);
@@ -41,15 +45,17 @@ export const useKiosk = (): UseKioskResult => {
     let active = true;
 
     const boot = async (): Promise<void> => {
+      setErrorMessage(null);
       try {
         const next = await startKioskSession();
         if (active) {
           setSession(next);
           setIsReady(true);
         }
-      } catch {
+      } catch (error) {
         if (active) {
           setIsReady(false);
+          setErrorMessage(getUserFacingKioskError(error));
         }
       }
     };
@@ -68,12 +74,16 @@ export const useKiosk = (): UseKioskResult => {
 
     setIsBusy(true);
     setAuthMode('qr');
+    setErrorMessage(null);
     try {
       const result = await scanKioskIdentity({
         sessionId: session.sessionId,
         mode: 'qr',
       });
       setLastAction(result.success ? 'qr' : null);
+    } catch (error) {
+      setErrorMessage(getUserFacingKioskError(error));
+      setLastAction(null);
     } finally {
       setIsBusy(false);
     }
@@ -86,12 +96,16 @@ export const useKiosk = (): UseKioskResult => {
 
     setIsBusy(true);
     setAuthMode('card');
+    setErrorMessage(null);
     try {
       const result = await scanKioskIdentity({
         sessionId: session.sessionId,
         mode: 'card',
       });
       setLastAction(result.success ? 'card' : null);
+    } catch (error) {
+      setErrorMessage(getUserFacingKioskError(error));
+      setLastAction(null);
     } finally {
       setIsBusy(false);
     }
@@ -114,6 +128,7 @@ export const useKiosk = (): UseKioskResult => {
     isBusy,
     lastAction,
     authMode,
+    errorMessage,
     scanQr,
     tapCard,
     runQuickService,

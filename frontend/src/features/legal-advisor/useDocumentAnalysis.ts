@@ -1,8 +1,15 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ar } from '../../core/i18n/ar';
+import { ApiError, getUserFacingAdvisorError, getUserFacingDocumentError } from '../../shared/api/errors';
+import { isDomainLive } from '../../shared/api/mode';
+import {
+  getDocuments,
+  uploadDocument as uploadCaseDocument,
+} from '../documents/documentsApi';
+import { getLegalCases } from '../legal-file/legalFileApi';
 
-import { startDocumentAnalysis, uploadDocument } from './advisorApi';
+import { startDocumentAnalysis } from './advisorApi';
 
 import type { FileKind, UploadedFileItem } from './advisor.types';
 
@@ -10,9 +17,11 @@ interface UseDocumentAnalysisResult {
   files: UploadedFileItem[];
   canAnalyze: boolean;
   isAnalyzing: boolean;
+  errorMessage: string | null;
   addFiles: (fileList: File[]) => void;
   removeFile: (id: string) => void;
   startAnalyze: () => Promise<string | null>;
+  clearError: () => void;
 }
 
 const createId = (): string =>
@@ -47,11 +56,59 @@ const initialMockFiles = (): UploadedFileItem[] => [
   },
 ];
 
+const parseSizeMb = (sizeLabel: string): number => {
+  const match = sizeLabel.replace(/[^\d.]/g, '');
+  const value = Number.parseFloat(match);
+  return Number.isFinite(value) && value > 0 ? value : 0.1;
+};
+
 export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
-  const [files, setFiles] = useState<UploadedFileItem[]>(initialMockFiles);
+  const live = isDomainLive('advisor');
+  const [files, setFiles] = useState<UploadedFileItem[]>(() =>
+    live ? [] : initialMockFiles(),
+  );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!live) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    void getDocuments()
+      .then((documents) => {
+        if (cancelled) {
+          return;
+        }
+        setFiles(
+          documents.map((document) => ({
+            id: document.id,
+            name: document.name,
+            sizeMB: parseSizeMb(document.sizeLabel),
+            progress: 100,
+            status: 'done' as const,
+            kind: document.kind,
+            documentId: document.id,
+          })),
+        );
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setErrorMessage(getUserFacingDocumentError(error));
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [live]);
+
+  useEffect(() => {
+    if (live) {
+      return undefined;
+    }
+
     const pending = files.find(
       (file) => file.id === 'mock-image' && file.status === 'uploading',
     );
@@ -86,69 +143,126 @@ export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
     return () => {
       window.clearInterval(timer);
     };
-  }, []);
+    // Mock seed animation runs once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live]);
 
-  const addFiles = useCallback((fileList: File[]) => {
-    fileList.forEach((file) => {
-      const id = createId();
-      const sizeMB = Math.round((file.size / (1024 * 1024)) * 10) / 10;
-      const kind = detectKind(file.name, file.type);
+  const addFiles = useCallback(
+    (fileList: File[]) => {
+      setErrorMessage(null);
+      fileList.forEach((file) => {
+        const id = createId();
+        const sizeMB = Math.round((file.size / (1024 * 1024)) * 10) / 10;
+        const kind = detectKind(file.name, file.type);
 
-      setFiles((current) => [
-        ...current,
-        {
-          id,
-          name: file.name,
-          sizeMB: sizeMB || 0.1,
-          progress: 0,
-          status: 'uploading',
-          kind,
-        },
-      ]);
+        setFiles((current) => [
+          ...current,
+          {
+            id,
+            name: file.name,
+            sizeMB: sizeMB || 0.1,
+            progress: 0,
+            status: 'uploading',
+            kind,
+          },
+        ]);
 
-      void uploadDocument(file, (percent) => {
-        setFiles((current) =>
-          current.map((item) =>
-            item.id === id
-              ? {
-                  ...item,
-                  progress: percent,
-                  status: percent >= 100 ? 'done' : 'uploading',
-                }
-              : item,
-          ),
-        );
-      })
-        .then((result) => {
+        const upload = async (): Promise<{ documentId: string }> => {
+          if (!isDomainLive('advisor')) {
+            for (let percent = 10; percent <= 100; percent += 10) {
+              await new Promise<void>((resolve) => {
+                window.setTimeout(resolve, 120);
+              });
+              setFiles((current) =>
+                current.map((item) =>
+                  item.id === id
+                    ? {
+                        ...item,
+                        progress: percent,
+                        status: percent >= 100 ? 'done' : 'uploading',
+                      }
+                    : item,
+                ),
+              );
+            }
+            return { documentId: `doc-${Date.now()}-${file.name}` };
+          }
+
+          const cases = await getLegalCases();
+          if (cases.length === 0) {
+            throw new ApiError(
+              'CASE_NOT_FOUND',
+              ar.advisor.upload.noCaseError,
+              404,
+            );
+          }
+
           setFiles((current) =>
             current.map((item) =>
-              item.id === id
-                ? {
-                    ...item,
-                    progress: 100,
-                    status: 'done',
-                    documentId: result.documentId,
-                  }
-                : item,
+              item.id === id ? { ...item, progress: 40 } : item,
             ),
           );
-        })
-        .catch(() => {
+
+          const uploaded = await uploadCaseDocument({
+            file,
+            caseId: cases[0].id,
+          });
+
           setFiles((current) =>
             current.map((item) =>
-              item.id === id ? { ...item, status: 'error', progress: 0 } : item,
+              item.id === id ? { ...item, progress: 100 } : item,
             ),
           );
-        });
-    });
-  }, []);
+
+          return { documentId: uploaded.id };
+        };
+
+        void upload()
+          .then((result) => {
+            setFiles((current) =>
+              current.map((item) =>
+                item.id === id
+                  ? {
+                      ...item,
+                      progress: 100,
+                      status: 'done',
+                      documentId: result.documentId,
+                    }
+                  : item,
+              ),
+            );
+          })
+          .catch((error: unknown) => {
+            setFiles((current) =>
+              current.map((item) =>
+                item.id === id ? { ...item, status: 'error', progress: 0 } : item,
+              ),
+            );
+            if (
+              error instanceof ApiError &&
+              error.code === 'CASE_NOT_FOUND'
+            ) {
+              setErrorMessage(ar.advisor.upload.noCaseError);
+              return;
+            }
+            setErrorMessage(getUserFacingDocumentError(error));
+          });
+      });
+    },
+    [],
+  );
 
   const removeFile = useCallback((id: string) => {
     setFiles((current) => current.filter((file) => file.id !== id));
   }, []);
 
+  const clearError = useCallback(() => {
+    setErrorMessage(null);
+  }, []);
+
   const canAnalyze = useMemo(
-    () => files.some((file) => file.status === 'done'),
+    () =>
+      files.some((file) => file.status === 'done' && Boolean(file.documentId)),
     [files],
   );
 
@@ -158,13 +272,15 @@ export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
     }
 
     setIsAnalyzing(true);
+    setErrorMessage(null);
     try {
       const documentIds = files
         .filter((file) => file.status === 'done' && file.documentId)
         .map((file) => file.documentId as string);
       const result = await startDocumentAnalysis(documentIds);
       return result.jobId;
-    } catch {
+    } catch (error: unknown) {
+      setErrorMessage(getUserFacingAdvisorError(error));
       return null;
     } finally {
       setIsAnalyzing(false);
@@ -175,8 +291,10 @@ export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
     files,
     canAnalyze,
     isAnalyzing,
+    errorMessage,
     addFiles,
     removeFile,
     startAnalyze,
+    clearError,
   };
 };

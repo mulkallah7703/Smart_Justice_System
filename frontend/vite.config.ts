@@ -1,10 +1,15 @@
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
     open: true,
+  },
+  test: {
+    environment: 'happy-dom',
+    include: ['src/**/*.spec.ts'],
+    setupFiles: ['src/test/setup.ts'],
   },
 });

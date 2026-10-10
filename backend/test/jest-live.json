@@ -1,0 +1,12 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testEnvironment": "node",
+  "testRegex": "test/live/.*\\.spec\\.ts$",
+  "transform": {
+    "^.+\\.ts$": "ts-jest"
+  },
+  "testPathIgnorePatterns": ["<rootDir>/dist/"],
+  "modulePathIgnorePatterns": ["<rootDir>/dist/"],
+  "testTimeout": 180000
+}

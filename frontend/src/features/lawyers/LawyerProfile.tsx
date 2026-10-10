@@ -13,8 +13,8 @@ import styles from './LawyerProfile.module.css';
 
 const LawyerProfile = (): JSX.Element => {
   const navigate = useNavigate();
-  const { id = 'lawyer-1' } = useParams<{ id: string }>();
-  const { profile, isLoading, isFavorite, toggleFavorite } =
+  const { id = '' } = useParams<{ id: string }>();
+  const { profile, isLoading, errorMessage, isFavorite, toggleFavorite } =
     useLawyerProfile(id);
 
   return (
@@ -64,6 +64,12 @@ const LawyerProfile = (): JSX.Element => {
               </div>
             </div>
           </>
+        ) : null}
+
+        {!isLoading && !profile && errorMessage ? (
+          <p className={styles.error} role="alert">
+            {errorMessage}
+          </p>
         ) : null}
       </div>
     </ScreenShell>

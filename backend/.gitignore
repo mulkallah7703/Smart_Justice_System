@@ -1,0 +1,7 @@
+# Local development artifacts
+dist/
+coverage/
+.env
+*.log
+.ocr-data/
+

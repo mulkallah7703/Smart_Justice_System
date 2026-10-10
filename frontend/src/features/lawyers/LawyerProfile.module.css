@@ -47,6 +47,15 @@
   color: var(--color-text-muted);
 }
 
+.error {
+  margin: 0;
+  padding: var(--space-6) var(--layout-screen-padding-h);
+  font-size: var(--font-size-body-sm);
+  line-height: var(--line-height-body);
+  color: var(--color-surface);
+  text-align: center;
+}
+
 .footer {
   padding: var(--space-4) var(--layout-screen-padding-h);
   padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
