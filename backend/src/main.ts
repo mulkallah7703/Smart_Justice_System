@@ -24,7 +24,19 @@ async function bootstrap(): Promise<void> {
   const logger = app.get(Logger);
   app.useLogger(logger);
   app.enableShutdownHooks();
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'none'"],
+          baseUri: ["'none'"],
+          frameAncestors: ["'none'"],
+          formAction: ["'none'"],
+          objectSrc: ["'none'"],
+        },
+      },
+    }),
+  );
 
   const configService = app.get(ConfigService<AppConfig, true>);
   const corsOrigins = configService.get('corsOrigins', { infer: true });
@@ -44,7 +56,12 @@ async function bootstrap(): Promise<void> {
     origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Idempotency-Key',
+      'Cache-Control',
+    ],
   });
 
   app.setGlobalPrefix('api/v1', {
@@ -59,7 +76,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new TransformInterceptor());
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.log(`API received ${signal}; closing HTTP and Nest context`);

@@ -56,7 +56,6 @@ const JudicialCardScreen = (): JSX.Element => {
 
               <CardActions
                 onShowIdentity={showIdentity}
-                onAddToWallet={() => undefined}
                 onUpgrade={() => navigate('/card/upgrade')}
               />
             </>

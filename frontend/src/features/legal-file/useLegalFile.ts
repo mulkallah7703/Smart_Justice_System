@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 
 import { getLegalCases } from './legalFileApi';
 
@@ -9,12 +9,18 @@ interface UseLegalFileResult {
   setActiveTab: (tab: LegalFileTabId) => void;
   cases: LegalCase[];
   isLoading: boolean;
+  reloadCases: () => void;
 }
 
 export const useLegalFile = (): UseLegalFileResult => {
   const [activeTab, setActiveTab] = useState<LegalFileTabId>('cases');
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  const reloadCases = useCallback(() => {
+    setReloadToken((token) => token + 1);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -42,12 +48,13 @@ export const useLegalFile = (): UseLegalFileResult => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadToken]);
 
   return {
     activeTab,
     setActiveTab,
     cases,
     isLoading,
+    reloadCases,
   };
 };

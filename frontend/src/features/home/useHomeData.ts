@@ -2,13 +2,15 @@
 
 import { ar } from '../../core/i18n/ar';
 import { isDomainLive, isRealApiMode } from '../../shared/api/mode';
+import { fetchAlerts } from '../alerts/alertsApi';
+import { alertsStore } from '../alerts/alertsStore';
 import { authStore } from '../auth/authStore';
 import { getLegalCases } from '../legal-file/legalFileApi';
 import { mapFrontendCaseToHome } from '../legal-file/mapCase';
 import { getCurrentUser } from '../profile/profileApi';
 import type { FrontendUser } from '../../shared/api/types';
 
-import type { HomeCase, HomeData, HomeJudicialCard } from './home.types';
+import type { HomeAlert, HomeCase, HomeData, HomeJudicialCard } from './home.types';
 
 const tierToHome = (
   tier: FrontendUser['tier'],
@@ -25,8 +27,20 @@ const tierLabel = (tier: FrontendUser['tier']): string => {
 };
 
 export const useHomeData = (): HomeData => {
+  const real = isRealApiMode();
   const [user, setUser] = useState<FrontendUser | null>(null);
-  const [liveCases, setLiveCases] = useState<HomeCase[] | null>(null);
+  const [userReady, setUserReady] = useState(!real);
+  const [liveCases, setLiveCases] = useState<HomeCase[] | null>(real ? [] : null);
+  const [casesReady, setCasesReady] = useState(!real);
+  const [alert, setAlert] = useState<HomeAlert | null>(
+    real
+      ? null
+      : {
+          title: ar.home.alert.title,
+          subtitle: ar.home.alert.subtitle,
+        },
+  );
+  const [alertsReady, setAlertsReady] = useState(!real);
 
   const staticData = useMemo(
     () => ({
@@ -39,10 +53,6 @@ export const useHomeData = (): HomeData => {
         tier: 'silver' as const,
         tierLabel: ar.home.card.tierLabel,
         discountPct: ar.home.card.discountPct,
-      },
-      alert: {
-        title: ar.home.alert.title,
-        subtitle: ar.home.alert.subtitle,
       },
       services: ar.home.services.map((service, index) => ({
         ...service,
@@ -64,7 +74,8 @@ export const useHomeData = (): HomeData => {
   );
 
   useEffect(() => {
-    if (!isRealApiMode() || !authStore.getState().accessToken) {
+    if (!real || !authStore.getState().accessToken) {
+      setUserReady(true);
       return;
     }
 
@@ -79,20 +90,27 @@ export const useHomeData = (): HomeData => {
         if (active) {
           setUser(null);
         }
+      })
+      .finally(() => {
+        if (active) {
+          setUserReady(true);
+        }
       });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [real]);
 
   useEffect(() => {
     if (!isDomainLive('legal-file')) {
+      setCasesReady(true);
       return;
     }
 
     if (!authStore.getState().accessToken) {
       setLiveCases([]);
+      setCasesReady(true);
       return;
     }
 
@@ -112,6 +130,11 @@ export const useHomeData = (): HomeData => {
         if (active) {
           setLiveCases([]);
         }
+      })
+      .finally(() => {
+        if (active) {
+          setCasesReady(true);
+        }
       });
 
     return () => {
@@ -119,20 +142,66 @@ export const useHomeData = (): HomeData => {
     };
   }, []);
 
-  return {
-    ...staticData,
-    user: user
-      ? { greeting: staticData.user.greeting, name: user.name }
-      : staticData.user,
-    card: user
+  useEffect(() => {
+    if (!real || !authStore.getState().accessToken) {
+      setAlertsReady(true);
+      return;
+    }
+
+    let active = true;
+    void fetchAlerts()
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        alertsStore.getState().setUnreadCount(
+          data.filter((item) => !item.isRead).length,
+        );
+        const first = data.find((item) => !item.isRead) ?? null;
+        setAlert(
+          first
+            ? { title: first.titleAr, subtitle: first.bodyAr }
+            : null,
+        );
+      })
+      .catch(() => {
+        if (active) {
+          setAlert(null);
+          alertsStore.getState().setUnreadCount(0);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setAlertsReady(true);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [real]);
+
+  const card: HomeJudicialCard | null = real
+    ? user
       ? {
-          cardNumber: user.cardNumber || staticData.card.cardNumber,
+          cardNumber: user.cardNumber || '—',
           tier: tierToHome(user.tier),
           tierLabel: tierLabel(user.tier),
           discountPct: user.discountPct,
         }
-      : staticData.card,
-    cases: liveCases ?? staticData.cases,
-    isLoading: false,
+      : null
+    : staticData.card;
+
+  return {
+    user: user
+      ? { greeting: staticData.user.greeting, name: user.name }
+      : real
+        ? { greeting: staticData.user.greeting, name: '' }
+        : staticData.user,
+    card,
+    alert,
+    services: staticData.services,
+    cases: real ? (liveCases ?? []) : staticData.cases,
+    isLoading: real && (!userReady || !casesReady || !alertsReady),
   };
 };

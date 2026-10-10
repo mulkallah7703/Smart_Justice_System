@@ -211,6 +211,60 @@ describe('Cases (e2e)', () => {
     expect(response.body.error.code).toBe('AUTH_UNAUTHORIZED');
   });
 
+  it('creates a case for the caller and does not expose it to another user', async () => {
+    const creatorLogin = await login(app, uniqueNationalId());
+    const token = creatorLogin.body.data.accessToken as string;
+
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/cases')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        type: 'LABOR',
+        authority: 'E2E Labor Court',
+        notes: 'Citizen filing',
+      });
+
+    expect(created.status).toBe(201);
+    expect(created.body.data.type).toBe('LABOR');
+    expect(created.body.data.status).toBe('PENDING');
+    expect(created.body.data.authority).toBe('E2E Labor Court');
+    expect(created.body.data.notes).toBe('Citizen filing');
+    expect(created.body.data.caseNumber).toMatch(/^SJS-\d{4}-[A-F0-9]{8}$/);
+    expect(created.body.data.hearings).toEqual([]);
+    expect(created.body.data).not.toHaveProperty('userId');
+    expect(created.body.data).not.toHaveProperty('lawyerId');
+
+    const hidden = await request(app.getHttpServer())
+      .get(`/api/v1/cases/${created.body.data.id}`)
+      .set('Authorization', `Bearer ${strangerToken}`);
+    expect(hidden.status).toBe(404);
+    expect(hidden.body.error.code).toBe('CASE_NOT_FOUND');
+  });
+
+  it('rejects a client-supplied owner and a missing type', async () => {
+    const injected = await request(app.getHttpServer())
+      .post('/api/v1/cases')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ type: 'RENTAL', userId: ownerId });
+    expect(injected.status).toBe(400);
+    expect(injected.body.error.code).toBe('VALIDATION_ERROR');
+
+    const missing = await request(app.getHttpServer())
+      .post('/api/v1/cases')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ notes: 'no type' });
+    expect(missing.status).toBe(400);
+    expect(missing.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('requires a JWT to create a case', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/cases')
+      .send({ type: 'PERSONAL' });
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('AUTH_UNAUTHORIZED');
+  });
+
   it('serves concurrent list reads for the same owner', async () => {
     const [first, second] = await Promise.all([
       request(app.getHttpServer())

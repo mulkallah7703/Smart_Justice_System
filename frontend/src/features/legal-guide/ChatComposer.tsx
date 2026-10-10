@@ -1,6 +1,7 @@
 import type { FormEvent, KeyboardEvent } from 'react';
 import { useState } from 'react';
 
+import { ar } from '../../core/i18n/ar';
 import Icon from '../../shared/components/Icon';
 
 import styles from './ChatComposer.module.css';
@@ -56,8 +57,9 @@ const ChatComposer = ({
       <button
         type="button"
         className={styles.iconButton}
-        aria-label={micAriaLabel}
-        disabled={disabled}
+        aria-label={`${micAriaLabel}. ${ar.guide.micComingSoon}`}
+        title={ar.guide.micComingSoon}
+        disabled
       >
         <Icon name="mic" size={20} />
       </button>

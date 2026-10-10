@@ -22,7 +22,7 @@ Python `ai-service` is **not** part of the runtime.
    - `npm run worker:dev` (separate terminal; avoid dual `--watch` on Windows `dist` lock — use `build` + `start:prod` / `worker:prod` if needed)
 3. Frontend: set `VITE_API_MODE=real` and `VITE_API_BASE_URL=http://localhost:3000/api/v1` (see `frontend/.env.development`). Production builds **reject** `VITE_API_MODE=mock` and require a real API URL — no silent mock fallback.
 
-Demo citizen (seed): `dev.citizen@localhost.local` / `DevCitizen1!`
+Demo citizen (development seed only — `prisma db seed` refuses `NODE_ENV=production`): `dev.citizen@localhost.local` / `DevCitizen1!`
 
 ## Production configuration
 
@@ -37,14 +37,17 @@ See `backend/.env.production.example` and `infra/docker/.env.production.example`
 
 Missing `OPENAI_API_KEY` or Qdrant in production **fails fast** (no silent mock fallback).
 
-### Production deploy (Phase U)
+### Production deploy
+
+Launch runbook (single VPS, Compose, Nginx, Let's Encrypt): `docs/LAUNCH-CHECKLIST.md`.
 
 - Compose: `infra/docker/docker-compose.production.yml`
+- Object storage image: `pgsty/silo` (`minio/minio` was removed from Docker Hub)
 - Guide: `docs/PRODUCTION-DEPLOYMENT.md`
 - HTTPS: `docs/HTTPS.md`
 - Backup/restore: `docs/PRODUCTION-BACKUP-RESTORE.md`
 - Smoke test: `docs/PRODUCTION-SMOKE-TEST.md`
-- Results: `docs/PHASE-U-RESULT.md`
+- Handoff: `docs/MANAGER_HANDOFF.md`
 
 ## Docs
 
@@ -52,7 +55,9 @@ Missing `OPENAI_API_KEY` or Qdrant in production **fails fast** (no silent mock 
 - `docs/PHASE-S-AUDIT.md` / `docs/PHASE-S-RESULT.md` — production realification
 - `docs/PHASE-T-RESULT.md` / `docs/PHASE-T5-RESULT.md` — real AI / live RAG
 - `docs/PHASE-U-AUDIT.md` / `docs/PHASE-U-RESULT.md` — production infrastructure
-- `docs/MANAGER_HANDOFF.md` — demo handoff
+- `docs/LAUNCH-CHECKLIST.md` — tomorrow's production deploy
+- `docs/MANAGER_HANDOFF.md` — current handoff
+- `docs/PRODUCTION_READINESS_MATRIX.md` — what is real vs deferred
 
 ## Health
 

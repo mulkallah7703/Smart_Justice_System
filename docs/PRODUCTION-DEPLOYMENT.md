@@ -4,6 +4,10 @@ Commands match this repository. Replace hostnames and secrets; never commit secr
 
 **Deferred:** Nafath (`NAFATH_MODE=inactive`) · Payment (`PAYMENT_PROVIDER=deferred`) — not required for boot or readiness.
 
+**Object storage image:** `pgsty/silo` and client `pgsty/mc` (see the compose file). `minio/minio` and `minio/mc` no longer exist on Docker Hub. The S3 API, bucket init, and `MINIO_*` variables are unchanged.
+
+Operator steps for 11 October 2026: `docs/LAUNCH-CHECKLIST.md`.
+
 ---
 
 ## 1. Server requirements

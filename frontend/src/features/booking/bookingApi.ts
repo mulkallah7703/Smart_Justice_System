@@ -135,3 +135,12 @@ export const bookConsultation = async (
 
   return { consultationId: consultation.id };
 };
+
+export const listConsultations = async (): Promise<BackendConsultation[]> => {
+  if (isMockApiMode()) {
+    await wait(200);
+    return [];
+  }
+
+  return apiRequest<BackendConsultation[]>(endpoints.booking.list);
+};

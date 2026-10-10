@@ -429,7 +429,7 @@ Qdrant Cloud remains external (not replaced by local Qdrant in production).
 ### 9.3 Legacy / inactive stubs
 
 - `infra/docker/ai-service.Dockerfile` — **deprecated** (build fails intentionally); Python AI removed
-- K8s/Helm stubs under `infra/k8s` / `infra/helm` — not the current delivery path
+- Empty Kubernetes/Helm placeholder manifests were removed. Production delivery is `infra/docker/docker-compose.production.yml`.
 
 ### 9.4 Process topology (delivery)
 

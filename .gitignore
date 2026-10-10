@@ -17,6 +17,7 @@ out/
 
 # Logs & caches
 *.log
+dump.rdb
 npm-debug.log*
 .DS_Store
 Thumbs.db

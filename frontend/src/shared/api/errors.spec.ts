@@ -44,7 +44,7 @@ describe('case error mapping', () => {
   it('maps validation and unauthorized case errors', () => {
     expect(
       getUserFacingCaseError(new ApiError('VALIDATION_ERROR', 'x', 400)),
-    ).toBe(ar.nafath.errors.validation);
+    ).toBe(ar.legalFile.createCase.validation);
     expect(
       getUserFacingCaseError(new ApiError('AUTH_UNAUTHORIZED', 'x', 401)),
     ).toBe(ar.nafath.errors.unauthorized);

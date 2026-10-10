@@ -6,6 +6,6 @@ interface AlertsState {
 }
 
 export const alertsStore = create<AlertsState>((set) => ({
-  unreadCount: 1,
+  unreadCount: 0,
   setUnreadCount: (count) => set({ unreadCount: count }),
 }));
