@@ -2,63 +2,69 @@
 import { useNavigate } from 'react-router-dom';
 
 import { ar } from '../../core/i18n/ar';
-import { isDomainLive } from '../../shared/api/mode';
 import ScreenShell from '../../shared/components/ScreenShell';
 
 import ChatBubble from './ChatBubble';
 import ChatComposer from './ChatComposer';
 import GuideChatHeader from './GuideChatHeader';
-import GuideQuickReplies from './GuideQuickReplies';
+import GuideQuickReplies, { type GuideQuickReplyOption } from './GuideQuickReplies';
 import { useGuideChat } from './useGuideChat';
 import styles from './LegalGuideChat.module.css';
 
+const RETRY_ID = 'action:retry';
+const SUMMARY_ID = 'action:summary';
+
 const LegalGuideChat = (): JSX.Element => {
   const navigate = useNavigate();
-  const live = isDomainLive('guide');
   const {
     messages,
     stage,
     sessionId,
+    suggestedReplies,
     isTyping,
     isSending,
     errorMessage,
+    canRetry,
     sendMessage,
+    retry,
   } = useGuideChat();
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  const quickReplyOptions = useMemo(
-    () => [
-      { id: 'documented', label: ar.guide.quickReplies.documented },
-      { id: 'not-documented', label: ar.guide.quickReplies.notDocumented },
-    ],
-    [],
-  );
+  /** Chips come only from the model's own question, a failed send, or available guidance. */
+  const quickReplyOptions = useMemo<GuideQuickReplyOption[]>(() => {
+    if (canRetry) {
+      return [{ id: RETRY_ID, label: ar.guide.actions.retry }];
+    }
+    if (stage === 'QUESTION') {
+      return suggestedReplies.map((label, index) => ({
+        id: `reply-${index}`,
+        label,
+      }));
+    }
+    if (stage === 'ANSWER' && sessionId) {
+      return [{ id: SUMMARY_ID, label: ar.guide.actions.viewSummary }];
+    }
+    return [];
+  }, [canRetry, stage, suggestedReplies, sessionId]);
 
-  const lastMessage = messages[messages.length - 1];
   const showQuickReplies =
-    !live &&
-    !isTyping &&
-    !isSending &&
-    lastMessage?.id === 'ai-followup';
+    !isTyping && !isSending && quickReplyOptions.length > 0;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, showQuickReplies]);
 
-  useEffect(() => {
-    if (!live || !sessionId) {
+  const handleQuickReply = (option: GuideQuickReplyOption): void => {
+    if (option.id === RETRY_ID) {
+      void retry();
       return;
     }
-    if (stage === 'SUMMARY') {
-      navigate(`/guide/summary/${encodeURIComponent(sessionId)}`, {
-        replace: true,
-      });
+    if (option.id === SUMMARY_ID) {
+      navigate(`/guide/summary/${encodeURIComponent(sessionId)}`);
       return;
     }
-    if (stage === 'QUESTION') {
-      navigate('/guide/question', { replace: true });
-    }
-  }, [live, stage, sessionId, navigate]);
+    void sendMessage(option.label);
+  };
 
   return (
     <ScreenShell variant="default" noNav>
@@ -91,9 +97,7 @@ const LegalGuideChat = (): JSX.Element => {
               <GuideQuickReplies
                 options={quickReplyOptions}
                 disabled={isSending}
-                onSelect={(label) => {
-                  void sendMessage(label);
-                }}
+                onSelect={handleQuickReply}
               />
             ) : null}
             <div ref={bottomRef} />

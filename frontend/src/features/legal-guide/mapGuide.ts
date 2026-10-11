@@ -1,3 +1,5 @@
+import { ApiError } from '../../shared/api/errors';
+
 import type {
   GuideAnswerResponse,
   GuideStage,
@@ -7,16 +9,24 @@ import type {
   GuideSummaryStep,
 } from './guide.types';
 
-/** Backend start/answer envelope payloads (Phase K). */
+/** Backend start/answer envelope payloads. */
 export interface BackendGuideStart {
   sessionId: string;
   reply: string;
+}
+
+export interface BackendGuideTurn {
+  needsClarification: boolean;
+  clarificationQuestion: string | null;
+  suggestedReplies: string[];
+  urgent: boolean;
 }
 
 export interface BackendGuideAnswer {
   sessionId: string;
   reply: string;
   stage: GuideStage;
+  turn: BackendGuideTurn;
 }
 
 export interface BackendGuideSummary {
@@ -37,20 +47,62 @@ export interface BackendGuideSummary {
   steps: GuideSummaryStep[];
 }
 
+const ANSWER_STAGES: readonly GuideStage[] = ['QUESTION', 'ANSWER'];
+const MAX_SUGGESTED_REPLIES = 4;
+
+const invalidResponse = (): ApiError =>
+  new ApiError('AI_GUIDE_INVALID_RESPONSE', 'Invalid guide response', 502);
+
+const nonEmptyText = (value: unknown): value is string =>
+  typeof value === 'string' && value.trim().length > 0;
+
 export const mapGuideStart = (
   record: BackendGuideStart,
-): GuideStartResponse => ({
-  sessionId: record.sessionId,
-  reply: record.reply,
-});
+): GuideStartResponse => {
+  if (!nonEmptyText(record?.sessionId) || !nonEmptyText(record.reply)) {
+    throw invalidResponse();
+  }
+  return {
+    sessionId: record.sessionId,
+    reply: record.reply,
+  };
+};
 
+/** Rendered text must come from a well-formed turn; anything else is an error, never a fallback. */
 export const mapGuideAnswer = (
   record: BackendGuideAnswer,
-): GuideAnswerResponse => ({
-  sessionId: record.sessionId,
-  reply: record.reply,
-  stage: record.stage,
-});
+): GuideAnswerResponse => {
+  if (
+    !nonEmptyText(record?.sessionId) ||
+    !nonEmptyText(record.reply) ||
+    !ANSWER_STAGES.includes(record.stage)
+  ) {
+    throw invalidResponse();
+  }
+  const turn = record.turn;
+  if (
+    typeof turn !== 'object' ||
+    turn === null ||
+    turn.needsClarification !== (record.stage === 'QUESTION')
+  ) {
+    throw invalidResponse();
+  }
+  const suggestedReplies =
+    record.stage === 'QUESTION' && Array.isArray(turn.suggestedReplies)
+      ? turn.suggestedReplies
+          .filter(nonEmptyText)
+          .map((reply) => reply.trim())
+          .slice(0, MAX_SUGGESTED_REPLIES)
+      : [];
+
+  return {
+    sessionId: record.sessionId,
+    reply: record.reply,
+    stage: record.stage,
+    suggestedReplies,
+    urgent: turn.urgent === true,
+  };
+};
 
 export const mapGuideSummary = (
   record: BackendGuideSummary,

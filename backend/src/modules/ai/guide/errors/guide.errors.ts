@@ -43,6 +43,14 @@ export const aiGuideSessionExpired = (): AppError =>
     HttpStatus.GONE,
   );
 
+export const aiGuideSummaryNotReady = (): AppError =>
+  new AppError(
+    'AI_GUIDE_SUMMARY_NOT_READY',
+    'No guidance has been produced in this session yet',
+    'لم يُقدَّم إرشاد في هذه الجلسة بعد',
+    HttpStatus.CONFLICT,
+  );
+
 export const aiGuideMessageLimit = (): AppError =>
   new AppError(
     'AI_GUIDE_MESSAGE_LIMIT',

@@ -8,7 +8,7 @@ export interface GuideQuickReplyOption {
 interface GuideQuickRepliesProps {
   options: GuideQuickReplyOption[];
   disabled?: boolean;
-  onSelect: (label: string) => void;
+  onSelect: (option: GuideQuickReplyOption) => void;
 }
 
 const GuideQuickReplies = ({
@@ -24,7 +24,7 @@ const GuideQuickReplies = ({
           type="button"
           className={styles.chip}
           disabled={disabled}
-          onClick={() => onSelect(option.label)}
+          onClick={() => onSelect(option)}
         >
           {option.label}
         </button>

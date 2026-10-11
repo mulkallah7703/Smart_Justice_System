@@ -1,5 +1,7 @@
-﻿import { useNavigate } from 'react-router-dom';
+﻿import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
+import AlertBanner from '../../shared/components/AlertBanner';
 import CaseCard from '../../shared/components/CaseCard';
 import EmptyState from '../../shared/components/EmptyState';
 import { ar } from '../../core/i18n/ar';
@@ -12,15 +14,13 @@ import styles from './CasesTab.module.css';
 interface CasesTabProps {
   cases: LegalCase[];
   isLoading: boolean;
-  onAddCase?: () => void;
 }
 
-const CasesTab = ({
-  cases,
-  isLoading,
-  onAddCase,
-}: CasesTabProps): JSX.Element => {
+const CasesTab = ({ cases, isLoading }: CasesTabProps): JSX.Element => {
   const navigate = useNavigate();
+  // There is no case-linking workflow yet (cases are read-only and linked server-side);
+  // the action must say so instead of creating or implying a court case.
+  const [showUnavailable, setShowUnavailable] = useState(false);
 
   return (
     <div className={styles.list}>
@@ -46,7 +46,10 @@ const CasesTab = ({
             />
           ))
         : null}
-      <AddCaseCard onClick={onAddCase} />
+      <AddCaseCard onClick={() => setShowUnavailable(true)} />
+      {showUnavailable ? (
+        <AlertBanner variant="info" message={ar.legalFile.addCaseUnavailable} />
+      ) : null}
     </div>
   );
 };

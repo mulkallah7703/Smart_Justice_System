@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { AiGuideSession } from '@prisma/client';
+import type { AiGuideSession, Prisma } from '@prisma/client';
 
 import type { AppConfig } from '../../../config/env.validation';
 import { AppError } from '../../../shared/exceptions/app-error';
@@ -24,14 +24,45 @@ import {
   aiGuideMessageLimit,
   aiGuideSessionExpired,
   aiGuideSessionNotFound,
+  aiGuideSummaryNotReady,
 } from './errors/guide.errors';
 import {
-  buildDeterministicGuideReply,
-  buildGuideSummary,
-} from './guide-dialogue';
-import { resolveGuideStage, type GuideStage } from './guide-stage';
-import { mapGuideAnswer, mapGuideStart } from './mappers/guide.mapper';
-import { LEGAL_GUIDE_SYSTEM_PROMPT } from './prompts/legal-guide.prompt';
+  GUIDE_MAX_CLARIFICATIONS,
+  parseGuideTurn,
+  readStoredGuideTurn,
+  renderGuideReply,
+  type GuideTurn,
+} from './guide-turn';
+import {
+  mapGuideAnswer,
+  mapGuideSummary,
+  mapGuideWelcome,
+} from './mappers/guide.mapper';
+import {
+  GUIDE_TURN_RETRY_SUFFIX,
+  GUIDE_WELCOME_REPLY_AR,
+  LEGAL_GUIDE_SYSTEM_PROMPT,
+  buildGuideTurnUserPrompt,
+  type GuidePromptTurn,
+} from './prompts/legal-guide.prompt';
+
+/** Most recent turns sent verbatim; the original question and established facts are always sent. */
+const GUIDE_CONTEXT_TURNS = 12;
+
+interface StoredMessage {
+  role: 'USER' | 'ASSISTANT';
+  content: string;
+  analysis: Prisma.JsonValue | null;
+}
+
+interface ConversationState {
+  originalQuestion: string;
+  turns: GuidePromptTurn[];
+  omittedTurns: number;
+  establishedFacts: string[];
+  clarificationsSinceGuidance: number;
+  previousQuestions: string[];
+}
 
 @Injectable()
 export class AiGuideService {
@@ -70,47 +101,18 @@ export class AiGuideService {
     );
 
     if (initial) {
-      await this.prisma.aiGuideMessage.create({
-        data: {
-          sessionId: session.id,
-          role: 'USER',
-          content: initial,
-        },
-      });
-
-      const stage = resolveGuideStage(1);
-      const reply = await this.composeReply({
-        stage,
-        isWelcome: false,
-        history: [{ role: 'USER', content: initial }],
-      });
-
-      await this.prisma.aiGuideMessage.create({
-        data: {
-          sessionId: session.id,
-          role: 'ASSISTANT',
-          content: reply,
-        },
-      });
-
-      return mapGuideStart(session.id, reply);
+      return this.runTurn(session, [], initial);
     }
-
-    const reply = await this.composeReply({
-      stage: 'CHAT',
-      isWelcome: true,
-      history: [],
-    });
 
     await this.prisma.aiGuideMessage.create({
       data: {
         sessionId: session.id,
         role: 'ASSISTANT',
-        content: reply,
+        content: GUIDE_WELCOME_REPLY_AR,
       },
     });
 
-    return mapGuideStart(session.id, reply);
+    return mapGuideWelcome(session.id, GUIDE_WELCOME_REPLY_AR);
   }
 
   async answer(
@@ -133,62 +135,13 @@ export class AiGuideService {
       throw aiGuideMessageLimit();
     }
 
-    await this.prisma.aiGuideMessage.create({
-      data: {
-        sessionId: session.id,
-        role: 'USER',
-        content: answer,
-      },
-    });
-
-    const messages = await this.prisma.aiGuideMessage.findMany({
+    const history = await this.prisma.aiGuideMessage.findMany({
       where: { sessionId: session.id },
       orderBy: { createdAt: 'asc' },
-      select: { role: true, content: true },
+      select: { role: true, content: true, analysis: true },
     });
 
-    const userCount = messages.filter((m) => m.role === 'USER').length;
-    const stage = resolveGuideStage(userCount);
-
-    let reply: string;
-    try {
-      reply = await this.composeReply({
-        stage,
-        isWelcome: false,
-        history: messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
-      });
-    } catch (error) {
-      this.logger.warn(
-        `Guide reply failed sessionId=${session.id} errorCode=${
-          error instanceof AppError ? error.code : 'AI_GUIDE_FAILED'
-        }`,
-      );
-      throw error instanceof AppError ? error : aiGuideFailed();
-    }
-
-    await this.prisma.aiGuideMessage.create({
-      data: {
-        sessionId: session.id,
-        role: 'ASSISTANT',
-        content: reply,
-      },
-    });
-
-    if (stage === 'SUMMARY' && session.status === 'ACTIVE') {
-      await this.prisma.aiGuideSession.update({
-        where: { id: session.id },
-        data: { status: 'COMPLETED' },
-      });
-    }
-
-    this.logger.log(
-      `Guide answer sessionId=${session.id} stage=${stage} userId=${userId}`,
-    );
-
-    return mapGuideAnswer(session.id, reply, stage);
+    return this.runTurn(session, history, answer);
   }
 
   async summary(
@@ -200,16 +153,141 @@ export class AiGuideService {
       throw aiGuideSessionNotFound();
     }
 
-    const messages = await this.prisma.aiGuideMessage.findMany({
-      where: { sessionId: session.id },
-      orderBy: { createdAt: 'asc' },
-      select: { role: true, content: true },
+    const latest = await this.prisma.aiGuideMessage.findMany({
+      where: { sessionId: session.id, role: 'ASSISTANT' },
+      orderBy: { createdAt: 'desc' },
+      select: { analysis: true },
+      take: 20,
     });
+    const guidance = latest
+      .map((m) => readStoredGuideTurn(m.analysis))
+      .find((turn) => turn !== null && !turn.needsClarification);
+    if (!guidance) {
+      throw aiGuideSummaryNotReady();
+    }
 
-    return buildGuideSummary(
-      session.id,
-      messages.map((m) => ({ role: m.role, content: m.content })),
+    return mapGuideSummary(session.id, guidance);
+  }
+
+  /**
+   * One validated model turn. Messages are persisted only after the turn is valid, so a
+   * failed request leaves no orphan user message and a retry does not duplicate it.
+   */
+  private async runTurn(
+    session: AiGuideSession,
+    history: readonly StoredMessage[],
+    userMessage: string,
+  ): Promise<GuideAnswerResponseDto> {
+    const state = buildConversationState(history, userMessage);
+    const mustAnswer =
+      state.clarificationsSinceGuidance >= GUIDE_MAX_CLARIFICATIONS;
+
+    let turn: GuideTurn;
+    try {
+      turn = await this.generateTurn(state, mustAnswer);
+    } catch (error) {
+      this.logger.warn(
+        `Guide turn failed sessionId=${session.id} errorCode=${
+          error instanceof AppError ? error.code : 'AI_GUIDE_FAILED'
+        }`,
+      );
+      throw this.mapProviderError(error);
+    }
+
+    const clarificationCount =
+      state.clarificationsSinceGuidance + (turn.needsClarification ? 1 : 0);
+    const userAt = new Date();
+    const assistantAt = new Date(userAt.getTime() + 1);
+
+    await this.prisma.$transaction([
+      this.prisma.aiGuideMessage.create({
+        data: {
+          sessionId: session.id,
+          role: 'USER',
+          content: userMessage,
+          createdAt: userAt,
+        },
+      }),
+      this.prisma.aiGuideMessage.create({
+        data: {
+          sessionId: session.id,
+          role: 'ASSISTANT',
+          content: renderGuideReply(turn),
+          analysis: turn as unknown as Prisma.InputJsonValue,
+          createdAt: assistantAt,
+        },
+      }),
+      ...(!turn.needsClarification && session.status === 'ACTIVE'
+        ? [
+            this.prisma.aiGuideSession.update({
+              where: { id: session.id },
+              data: { status: 'COMPLETED' },
+            }),
+          ]
+        : []),
+    ]);
+
+    this.logger.log(
+      `Guide turn sessionId=${session.id} stage=${
+        turn.needsClarification ? 'QUESTION' : 'ANSWER'
+      } clarifications=${clarificationCount} domains=${turn.domains.join(',')}`,
     );
+
+    return mapGuideAnswer(session.id, turn, clarificationCount);
+  }
+
+  /** One model call; a single constrained retry only when the output fails validation. */
+  private async generateTurn(
+    state: ConversationState,
+    mustAnswer: boolean,
+  ): Promise<GuideTurn> {
+    const userPrompt = buildGuideTurnUserPrompt({
+      originalQuestion: state.originalQuestion,
+      turns: state.turns,
+      omittedTurns: state.omittedTurns,
+      establishedFacts: state.establishedFacts,
+      clarificationsAsked: state.clarificationsSinceGuidance,
+      maxClarifications: GUIDE_MAX_CLARIFICATIONS,
+      mustAnswerNow: mustAnswer,
+    });
+    const parseContext = {
+      mustAnswer,
+      previousQuestions: state.previousQuestions,
+    };
+
+    const first = await this.llm.generateAnswer({
+      systemPrompt: LEGAL_GUIDE_SYSTEM_PROMPT,
+      userPrompt,
+    });
+    const parsed = parseGuideTurn(first.text, parseContext);
+    if (parsed.ok) {
+      return parsed.value;
+    }
+    this.logger.warn(`Guide turn rejected reason=${parsed.reason}; retrying once`);
+
+    const second = await this.llm.generateAnswer({
+      systemPrompt: LEGAL_GUIDE_SYSTEM_PROMPT,
+      userPrompt: `${userPrompt}\n${GUIDE_TURN_RETRY_SUFFIX}`,
+    });
+    const retried = parseGuideTurn(second.text, parseContext);
+    if (retried.ok) {
+      return retried.value;
+    }
+    this.logger.warn(`Guide turn rejected after retry reason=${retried.reason}`);
+    throw aiGuideFailed();
+  }
+
+  private mapProviderError(error: unknown): AppError {
+    if (error instanceof AppError) {
+      if (error.code === AI_PROVIDER_ERROR) {
+        return aiGuideFailed();
+      }
+      if (error.code === 'AI_LLM_TIMEOUT') {
+        return aiLlmTimeout();
+      }
+      return error;
+    }
+    return aiGuideFailed();
   }
 
   private async findOwnedSession(
@@ -233,46 +311,59 @@ export class AiGuideService {
       throw aiGuideSessionExpired();
     }
   }
-
-  private async composeReply(input: {
-    stage: GuideStage;
-    isWelcome: boolean;
-    history: Array<{ role: 'USER' | 'ASSISTANT'; content: string }>;
-  }): Promise<string> {
-    const { llmMode } = this.configService.get('ai', { infer: true });
-
-    if (llmMode === 'mock') {
-      return buildDeterministicGuideReply(input.stage, input.isWelcome);
-    }
-
-    const untrustedContext = input.history.map(
-      (m) => `${m.role}: ${m.content}`,
-    );
-    if (input.isWelcome && untrustedContext.length === 0) {
-      untrustedContext.push('SYSTEM_EVENT: session_start_welcome');
-    }
-
-    try {
-      const completion = await this.llm.complete({
-        instruction: LEGAL_GUIDE_SYSTEM_PROMPT,
-        untrustedContext,
-      });
-      const text = completion.text?.trim();
-      if (!text) {
-        throw aiGuideFailed();
-      }
-      return text.slice(0, 4000);
-    } catch (error) {
-      if (error instanceof AppError) {
-        if (error.code === AI_PROVIDER_ERROR) {
-          throw aiGuideFailed();
-        }
-        if (error.code === 'AI_LLM_TIMEOUT') {
-          throw aiLlmTimeout();
-        }
-        throw error;
-      }
-      throw aiGuideFailed();
-    }
-  }
 }
+
+/**
+ * Context for the next turn, built only from this session's messages: the original question,
+ * the last GUIDE_CONTEXT_TURNS turns, the latest established facts, and the clarification
+ * budget used since the last guidance.
+ */
+export const buildConversationState = (
+  history: readonly StoredMessage[],
+  userMessage: string,
+): ConversationState => {
+  const turns: GuidePromptTurn[] = [];
+  let establishedFacts: string[] = [];
+  let clarificationsSinceGuidance = 0;
+  const previousQuestions: string[] = [];
+
+  for (const message of history) {
+    if (message.role === 'USER') {
+      turns.push({ role: 'USER', content: message.content });
+      continue;
+    }
+    const analysis = readStoredGuideTurn(message.analysis);
+    if (!analysis) {
+      // Welcome greeting — not part of the legal conversation.
+      continue;
+    }
+    establishedFacts = analysis.knownFacts;
+    if (analysis.needsClarification) {
+      clarificationsSinceGuidance += 1;
+      if (analysis.clarificationQuestion) {
+        previousQuestions.push(analysis.clarificationQuestion);
+      }
+    } else {
+      clarificationsSinceGuidance = 0;
+    }
+    turns.push({
+      role: 'ASSISTANT',
+      content: message.content,
+      kind: analysis.needsClarification ? 'clarification' : 'guidance',
+    });
+  }
+  turns.push({ role: 'USER', content: userMessage });
+
+  const originalQuestion =
+    turns.find((t) => t.role === 'USER')?.content ?? userMessage;
+  const omittedTurns = Math.max(0, turns.length - GUIDE_CONTEXT_TURNS);
+
+  return {
+    originalQuestion,
+    turns: turns.slice(omittedTurns),
+    omittedTurns,
+    establishedFacts,
+    clarificationsSinceGuidance,
+    previousQuestions,
+  };
+};

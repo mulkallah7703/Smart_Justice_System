@@ -1,14 +1,17 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 
 import { ar } from '../../core/i18n/ar';
-import { isDomainLive, isRealApiMode } from '../../shared/api/mode';
+import { isDomainLive, isMockApiMode, isRealApiMode } from '../../shared/api/mode';
+import { fetchAlerts } from '../alerts/alertsApi';
+import { alertsStore } from '../alerts/alertsStore';
 import { authStore } from '../auth/authStore';
 import { getLegalCases } from '../legal-file/legalFileApi';
 import { mapFrontendCaseToHome } from '../legal-file/mapCase';
 import { getCurrentUser } from '../profile/profileApi';
 import type { FrontendUser } from '../../shared/api/types';
 
-import type { HomeCase, HomeData, HomeJudicialCard } from './home.types';
+import type { HomeAlert, HomeCase, HomeData, HomeJudicialCard } from './home.types';
+import { selectHomeAlert } from './selectHomeAlert';
 
 const tierToHome = (
   tier: FrontendUser['tier'],
@@ -27,6 +30,7 @@ const tierLabel = (tier: FrontendUser['tier']): string => {
 export const useHomeData = (): HomeData => {
   const [user, setUser] = useState<FrontendUser | null>(null);
   const [liveCases, setLiveCases] = useState<HomeCase[] | null>(null);
+  const [homeAlert, setHomeAlert] = useState<HomeAlert | null>(null);
 
   const staticData = useMemo(
     () => ({
@@ -39,10 +43,6 @@ export const useHomeData = (): HomeData => {
         tier: 'silver' as const,
         tierLabel: ar.home.card.tierLabel,
         discountPct: ar.home.card.discountPct,
-      },
-      alert: {
-        title: ar.home.alert.title,
-        subtitle: ar.home.alert.subtitle,
       },
       services: ar.home.services.map((service, index) => ({
         ...service,
@@ -119,8 +119,40 @@ export const useHomeData = (): HomeData => {
     };
   }, []);
 
+  useEffect(() => {
+    if (
+      !isMockApiMode() &&
+      (!isDomainLive('alerts') || !authStore.getState().accessToken)
+    ) {
+      return;
+    }
+
+    let active = true;
+    const { setUnreadCount } = alertsStore.getState();
+    void fetchAlerts()
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        setHomeAlert(selectHomeAlert(data));
+        setUnreadCount(data.filter((alert) => !alert.isRead).length);
+      })
+      .catch(() => {
+        // A failed request is not an empty result: show no banner rather than
+        // stale or invented content. AlertsCenter surfaces the error to the user.
+        if (active) {
+          setHomeAlert(null);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return {
     ...staticData,
+    alert: homeAlert,
     user: user
       ? { greeting: staticData.user.greeting, name: user.name }
       : staticData.user,

@@ -604,6 +604,8 @@ model AiGuideMessage {
   id        String        @id @default(cuid())
   role      AiMessageRole
   content   String
+  /// Validated structured guide turn (assistant messages only).
+  analysis  Json?
   createdAt DateTime      @default(now())
 
   sessionId String

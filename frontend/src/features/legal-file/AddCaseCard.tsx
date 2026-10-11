@@ -4,7 +4,7 @@ import Icon from '../../shared/components/Icon';
 import styles from './AddCaseCard.module.css';
 
 interface AddCaseCardProps {
-  onClick?: () => void;
+  onClick: () => void;
 }
 
 const AddCaseCard = ({ onClick }: AddCaseCardProps): JSX.Element => {

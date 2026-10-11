@@ -1,4 +1,8 @@
-export type GuideStage = 'CHAT' | 'QUESTION' | 'SUMMARY';
+/**
+ * CHAT: no legal turn yet · QUESTION: the reply is one clarification the model needs ·
+ * ANSWER: the reply is guidance (the user may continue or correct facts).
+ */
+export type GuideStage = 'CHAT' | 'QUESTION' | 'ANSWER';
 
 export type BubbleRole = 'ai' | 'user';
 
@@ -6,12 +10,6 @@ export interface GuideMessage {
   id: string;
   role: BubbleRole;
   text: string;
-}
-
-export interface GuideSession {
-  sessionId: string;
-  messages: GuideMessage[];
-  stage: GuideStage;
 }
 
 export interface GuideStartResponse {
@@ -23,6 +21,9 @@ export interface GuideAnswerResponse {
   sessionId: string;
   reply: string;
   stage: GuideStage;
+  /** Answer options proposed by the model for its own question; may be empty. */
+  suggestedReplies: string[];
+  urgent: boolean;
 }
 
 export interface GuideSummaryDoc {

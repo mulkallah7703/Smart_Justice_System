@@ -37,11 +37,12 @@ describe('guideApi (mock mode)', () => {
     expect(started.sessionId).toMatch(/^guide-/);
     expect(started.reply).toBe(ar.guide.messages.welcome);
 
-    const first = await sendGuideAnswer(started.sessionId, 'إيجار');
+    const first = await sendGuideAnswer(started.sessionId, 'سؤال');
     expect(first.stage).toBe('QUESTION');
+    expect(first.reply).not.toMatch(/إيجار|مستأجر|عقد/);
 
-    const second = await sendGuideAnswer(started.sessionId, 'موثق');
-    expect(second.stage).toBe('SUMMARY');
+    const second = await sendGuideAnswer(started.sessionId, 'تفاصيل');
+    expect(second.stage).toBe('ANSWER');
 
     const summary = await fetchGuideSummary(started.sessionId);
     expect(summary.sessionId).toBe(started.sessionId);
@@ -70,7 +71,17 @@ describe('guideApi (real mode)', () => {
       )
       .mockResolvedValueOnce(
         jsonResponse({
-          data: { sessionId: 'sess_1', reply: 'سؤال', stage: 'QUESTION' },
+          data: {
+            sessionId: 'sess_1',
+            reply: 'هل وصلك إشعار رسمي بإنهاء العقد؟',
+            stage: 'QUESTION',
+            turn: {
+              needsClarification: true,
+              clarificationQuestion: 'هل وصلك إشعار رسمي بإنهاء العقد؟',
+              suggestedReplies: ['نعم', 'لا'],
+              urgent: false,
+            },
+          },
           meta: {},
         }),
       )
@@ -101,8 +112,14 @@ describe('guideApi (real mode)', () => {
     const started = await startGuideSession();
     expect(started).toEqual({ sessionId: 'sess_1', reply: 'مرحبا' });
 
-    const answered = await sendGuideAnswer('sess_1', 'مشكلة إيجار');
-    expect(answered.stage).toBe('QUESTION');
+    const answered = await sendGuideAnswer('sess_1', 'تم فصلي من العمل بدون سبب.');
+    expect(answered).toEqual({
+      sessionId: 'sess_1',
+      reply: 'هل وصلك إشعار رسمي بإنهاء العقد؟',
+      stage: 'QUESTION',
+      suggestedReplies: ['نعم', 'لا'],
+      urgent: false,
+    });
 
     const summary = await fetchGuideSummary('sess_1');
     expect(summary.docs[0].label).toBe('عقد');
@@ -122,7 +139,10 @@ describe('guideApi (real mode)', () => {
 
     expect(startBody).not.toHaveProperty('userId');
     expect(startBody).not.toHaveProperty('nationalId');
-    expect(answerBody).toEqual({ sessionId: 'sess_1', answer: 'مشكلة إيجار' });
+    expect(answerBody).toEqual({
+      sessionId: 'sess_1',
+      answer: 'تم فصلي من العمل بدون سبب.',
+    });
     expect(answerBody).not.toHaveProperty('userId');
     expect(JSON.stringify(answerBody)).not.toContain('guide-jwt');
     expect(
@@ -135,20 +155,30 @@ describe('guideApi (real mode)', () => {
 });
 
 describe('mapGuide', () => {
+  const turn = (needsClarification: boolean, suggestedReplies: unknown[] = []) => ({
+    needsClarification,
+    clarificationQuestion: needsClarification ? 'q' : null,
+    suggestedReplies: suggestedReplies as string[],
+    urgent: false,
+  });
+
   it('maps start, answer stages, and summary', () => {
     expect(mapGuideStart({ sessionId: 's', reply: 'r' })).toEqual({
       sessionId: 's',
       reply: 'r',
     });
     expect(
-      mapGuideAnswer({ sessionId: 's', reply: 'r', stage: 'SUMMARY' }).stage,
-    ).toBe('SUMMARY');
-    expect(
-      mapGuideAnswer({ sessionId: 's', reply: 'r', stage: 'CHAT' }).stage,
-    ).toBe('CHAT');
-    expect(
-      mapGuideAnswer({ sessionId: 's', reply: 'r', stage: 'QUESTION' }).stage,
-    ).toBe('QUESTION');
+      mapGuideAnswer({ sessionId: 's', reply: 'r', stage: 'ANSWER', turn: turn(false) })
+        .stage,
+    ).toBe('ANSWER');
+    const question = mapGuideAnswer({
+      sessionId: 's',
+      reply: 'r',
+      stage: 'QUESTION',
+      turn: turn(true, ['أ', '', 7, 'ب', 'ج', 'د', 'هـ']),
+    });
+    expect(question.stage).toBe('QUESTION');
+    expect(question.suggestedReplies).toEqual(['أ', 'ب', 'ج', 'د']);
 
     const summary = mapGuideSummary({
       sessionId: 's',
@@ -168,6 +198,31 @@ describe('mapGuide', () => {
       steps: [],
     });
     expect(summary).not.toHaveProperty('userId');
+  });
+
+  it('rejects malformed or inconsistent answers instead of rendering a fallback', () => {
+    const bad = [
+      { sessionId: 's', reply: '', stage: 'QUESTION', turn: turn(true) },
+      { sessionId: 's', reply: 'r', stage: 'SUMMARY', turn: turn(false) },
+      { sessionId: 's', reply: 'r', stage: 'CHAT', turn: turn(false) },
+      { sessionId: 's', reply: 'r', stage: 'QUESTION', turn: turn(false) },
+      { sessionId: 's', reply: 'r', stage: 'ANSWER' },
+    ];
+    for (const record of bad) {
+      expect(() => mapGuideAnswer(record as never)).toThrow(ApiError);
+    }
+    expect(() => mapGuideStart({ sessionId: '', reply: 'r' })).toThrow(ApiError);
+  });
+
+  it('suggested replies are only kept for clarification turns', () => {
+    expect(
+      mapGuideAnswer({
+        sessionId: 's',
+        reply: 'r',
+        stage: 'ANSWER',
+        turn: { ...turn(false), suggestedReplies: ['x'] },
+      }).suggestedReplies,
+    ).toEqual([]);
   });
 });
 

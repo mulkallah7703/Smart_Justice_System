@@ -9,6 +9,8 @@ import type {
   LlmProvider,
 } from '../llm-provider.interface';
 
+import { LEGAL_GUIDE_SYSTEM_PROMPT } from '../../guide/prompts/legal-guide.prompt';
+
 import { mockDigest, shouldMockFail } from './mock-directives';
 
 /** Test markers recognised only by the mock answer path. */
@@ -17,6 +19,35 @@ export const MOCK_ANSWER_UNKNOWN_CITE = 'mock-answer-unknown-cite';
 export const MOCK_ANSWER_UNCITED = 'mock-answer-uncited';
 export const MOCK_ANSWER_EMPTY = 'mock-answer-empty';
 export const MOCK_ANSWER_INSUFFICIENT = 'mock-answer-insufficient';
+export const MOCK_GUIDE_MALFORMED = 'mock-guide-malformed';
+
+/**
+ * Topic-neutral guide turn: one clarification, then guidance. It never names a legal
+ * scenario, so mock sessions cannot imply a fixed questionnaire.
+ */
+const mockGuideTurn = (userPrompt: string): string => {
+  if (userPrompt.includes(MOCK_GUIDE_MALFORMED)) {
+    return 'not-json{{{';
+  }
+  const answerNow =
+    userPrompt.includes('MUST_ANSWER_NOW: true') ||
+    userPrompt.includes('[ASSISTANT (clarification question)]');
+  return JSON.stringify({
+    domains: ['GENERAL'],
+    understanding: 'ملخص تجريبي لمسألة المستخدم (وضع الاختبار).',
+    knownFacts: ['وصف المستخدم لمسألته'],
+    missingFacts: answerNow ? [] : ['تفاصيل ما حدث'],
+    needsClarification: !answerNow,
+    clarificationQuestion: answerNow ? null : 'هل يمكنك توضيح ما حدث بالتفصيل؟',
+    suggestedReplies: [],
+    guidance: answerNow ? 'إرشاد تجريبي عام (وضع الاختبار).' : null,
+    nextSteps: answerNow ? ['راجع مختصاً عند الحاجة.'] : [],
+    suggestedDocuments: answerNow ? ['المستندات المتوفرة لديك'] : [],
+    likelyAuthority: null,
+    uncertainty: answerNow ? 'لا تتوفر مصادر نظامية موثقة.' : null,
+    urgent: false,
+  });
+};
 
 const extractEvidenceIds = (userPrompt: string): string[] => {
   const ids = new Set<string>();
@@ -59,6 +90,16 @@ export class MockLlmProvider implements LlmProvider {
     }
 
     const prompt = input.userPrompt;
+    if (input.systemPrompt === LEGAL_GUIDE_SYSTEM_PROMPT) {
+      const guideText = mockGuideTurn(prompt);
+      return Promise.resolve({
+        text: guideText,
+        model: 'mock-llm-v1',
+        promptTokens: prompt.length,
+        completionTokens: guideText.length,
+      });
+    }
+
     const evidenceIds = extractEvidenceIds(prompt);
     const firstId = evidenceIds[0] ?? 'E1';
 

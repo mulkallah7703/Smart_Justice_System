@@ -96,19 +96,50 @@ describe('AI Legal Guide (e2e)', () => {
     expect(messages).toHaveLength(1);
     expect(messages[0].role).toBe('ASSISTANT');
 
+    const notReady = await summary(ownerToken, sessionId);
+    expect(notReady.status).toBe(409);
+    expect(notReady.body.error.code).toBe('AI_GUIDE_SUMMARY_NOT_READY');
+
     const q1 = await answer(ownerToken, {
       sessionId,
-      answer: 'المستأجر تأخر عن دفع الإيجار',
+      answer: 'تم فصلي من العمل بدون سبب.',
     });
     expect(q1.status).toBe(200);
     expect(q1.body.data.stage).toBe('QUESTION');
+    expect(q1.body.data.reply).toBe(q1.body.data.turn.clarificationQuestion);
+    expect(q1.body.data.reply).not.toMatch(/إيجار|Ejar/);
+    expect(q1.body.data.turn).toEqual(
+      expect.objectContaining({
+        needsClarification: true,
+        clarificationCount: 1,
+        sourcesAvailable: false,
+        sources: [],
+      }),
+    );
 
     const q2 = await answer(ownerToken, {
       sessionId,
-      answer: 'نعم، العقد موثق',
+      answer: 'غير محدد المدة',
     });
     expect(q2.status).toBe(200);
-    expect(q2.body.data.stage).toBe('SUMMARY');
+    expect(q2.body.data.stage).toBe('ANSWER');
+    expect(q2.body.data.turn.needsClarification).toBe(false);
+
+    const stored = await prisma.aiGuideMessage.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(stored.map((m) => m.role)).toEqual([
+      'ASSISTANT',
+      'USER',
+      'ASSISTANT',
+      'USER',
+      'ASSISTANT',
+    ]);
+    expect(stored[1]!.content).toBe('تم فصلي من العمل بدون سبب.');
+    expect(stored[2]!.analysis).toEqual(
+      expect.objectContaining({ needsClarification: true }),
+    );
 
     const sum = await summary(ownerToken, sessionId);
     expect(sum.status).toBe(200);
@@ -121,6 +152,33 @@ describe('AI Legal Guide (e2e)', () => {
     );
     expect(sum.body.data).not.toHaveProperty('userId');
     expect(sum.body.data).not.toHaveProperty('createdAt');
+    expect(sum.body.data.durationDays).toBe(0);
+  });
+
+  it('starts with an initial question and answers within the same call', async () => {
+    const started = await start(ownerToken, {
+      initialMessage: 'أريد أرفع قضية.',
+    });
+    expect(started.status).toBe(201);
+    expect(started.body.data.stage).toBe('QUESTION');
+    expect(started.body.data.turn.clarificationQuestion).toBeTruthy();
+  });
+
+  it('fails closed on malformed model output without persisting or inventing a question', async () => {
+    const started = await start(ownerToken, {});
+    const sessionId = started.body.data.sessionId as string;
+
+    const failed = await answer(ownerToken, {
+      sessionId,
+      answer: 'سؤال mock-guide-malformed',
+    });
+    expect(failed.status).toBe(502);
+    expect(failed.body.error.code).toBe('AI_GUIDE_FAILED');
+    expect(failed.body.data).toBeUndefined();
+
+    const stored = await prisma.aiGuideMessage.findMany({ where: { sessionId } });
+    expect(stored).toHaveLength(1);
+    expect(stored[0]!.role).toBe('ASSISTANT');
   });
 
   it('rejects unexpected identity fields and invalid bodies', async () => {

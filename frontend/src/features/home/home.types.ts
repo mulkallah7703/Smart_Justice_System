@@ -15,6 +15,7 @@ export interface HomeJudicialCard {
 }
 
 export interface HomeAlert {
+  id: string;
   title: string;
   subtitle: string;
 }
@@ -39,7 +40,7 @@ export interface HomeService {
 export interface HomeData {
   user: HomeUser;
   card: HomeJudicialCard;
-  alert: HomeAlert;
+  alert: HomeAlert | null;
   services: HomeService[];
   cases: HomeCase[];
   isLoading: boolean;

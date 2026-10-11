@@ -12,9 +12,6 @@ const AlertsCenter = lazy(() => import('../../features/alerts/AlertsCenter'));
 const LegalGuideChat = lazy(
   () => import('../../features/legal-guide/LegalGuideChat'),
 );
-const ClarifyingQuestion = lazy(
-  () => import('../../features/legal-guide/ClarifyingQuestion'),
-);
 const GuidanceSummary = lazy(
   () => import('../../features/legal-guide/GuidanceSummary'),
 );
@@ -102,14 +99,8 @@ const AppRouter = (): JSX.Element => {
             </RequireAuth>
           }
         />
-        <Route
-          path="/guide/question"
-          element={
-            <RequireAuth>
-              <ClarifyingQuestion />
-            </RequireAuth>
-          }
-        />
+        {/* Clarifications are asked in the chat, one model-chosen question at a time. */}
+        <Route path="/guide/question" element={<Navigate to="/guide" replace />} />
         <Route
           path="/guide/summary/:sessionId"
           element={

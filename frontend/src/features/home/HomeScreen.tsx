@@ -31,11 +31,13 @@ const HomeScreen = (): JSX.Element => {
         </div>
 
         <ScrollContent className={styles.content}>
-          <ProactiveAlertBanner
-            title={alert.title}
-            subtitle={alert.subtitle}
-            onClick={() => navigate('/alerts')}
-          />
+          {alert ? (
+            <ProactiveAlertBanner
+              title={alert.title}
+              subtitle={alert.subtitle}
+              onClick={() => navigate('/alerts')}
+            />
+          ) : null}
 
           <ServicesGrid services={services} />
 

@@ -130,6 +130,25 @@ describe('Alerts (e2e)', () => {
     );
   });
 
+  it('returns an empty list for a user with no alerts and creates none', async () => {
+    const emptyLogin = await login(app, uniqueNationalId());
+    const emptyToken = emptyLogin.body.data.accessToken as string;
+    const emptyUserId = JSON.parse(
+      Buffer.from(emptyToken.split('.')[1], 'base64url').toString('utf8'),
+    ).sub as string;
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/alerts')
+      .set('Authorization', `Bearer ${emptyToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual([]);
+    expect(response.body.meta.pagination).toEqual(
+      expect.objectContaining({ page: 1, total: 0 }),
+    );
+    expect(await prisma.alert.count({ where: { userId: emptyUserId } })).toBe(0);
+  });
+
   it('filters unreadOnly', async () => {
     const response = await request(app.getHttpServer())
       .get('/api/v1/alerts?unreadOnly=true')
