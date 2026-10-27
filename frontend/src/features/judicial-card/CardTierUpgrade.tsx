@@ -18,25 +18,7 @@ const CardTierUpgrade = (): JSX.Element => {
     setSelectedTier,
     tiers,
     isLoading,
-    isSubmitting,
-    canUpgrade,
-    errorMessage,
-    submitUpgrade,
   } = useCardUpgrade();
-
-  const ctaLabel =
-    selectedTier === 'GOLD'
-      ? ar.judicialCard.upgrade.ctaGold
-      : selectedTier === 'SILVER'
-        ? ar.judicialCard.upgrade.ctaSilver
-        : ar.judicialCard.upgrade.ctaNormal;
-
-  const handleUpgrade = async (): Promise<void> => {
-    const ok = await submitUpgrade();
-    if (ok) {
-      navigate('/card');
-    }
-  };
 
   return (
     <ScreenShell variant="default" noNav>
@@ -52,11 +34,9 @@ const CardTierUpgrade = (): JSX.Element => {
         </header>
 
         <div className={styles.content}>
-          {errorMessage ? (
-            <p className={styles.subtitle} role="alert">
-              {errorMessage}
-            </p>
-          ) : null}
+          <p className={styles.subtitle} role="status">
+            {ar.judicialCard.upgrade.comingSoon}
+          </p>
           {!isLoading ? (
             <TierCompare
               options={tiers}
@@ -73,12 +53,9 @@ const CardTierUpgrade = (): JSX.Element => {
             fullWidth
             icon="workspace_premium"
             iconFilled
-            disabled={!canUpgrade}
-            onClick={() => {
-              void handleUpgrade();
-            }}
+            disabled
           >
-            {isSubmitting ? ar.judicialCard.upgrade.submitting : ctaLabel}
+            {ar.judicialCard.upgrade.ctaSoon}
           </Button>
         </footer>
       </div>

@@ -15,8 +15,8 @@ import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/auth.types';
 import { CasesService } from './cases.service';
-import { CreateCaseDto } from './dto/create-case.dto';
 import { CaseListQueryDto } from './dto/case-list-query.dto';
+import { CreateCaseDto } from './dto/create-case.dto';
 import type { CaseDetailDto } from './dto/case-response.dto';
 import { CaseCreateRateLimitGuard } from './guards/case-create-rate-limit.guard';
 

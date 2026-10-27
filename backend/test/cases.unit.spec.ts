@@ -147,6 +147,59 @@ describe('CasesService', () => {
     );
   });
 
+  it('creates a pending case owned by the caller and trims authority', async () => {
+    const createdAt = new Date('2026-10-10T00:00:00.000Z');
+    const prisma = {
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'user-a', role: 'CITIZEN' }),
+      },
+      case: {
+        create: jest.fn().mockResolvedValue({ id: 'case_new' }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'case_new',
+          caseNumber: 'SJS-2026-ABCDEF01',
+          type: CaseType.LABOR,
+          status: CaseStatus.PENDING,
+          authority: 'Labor court',
+          notes: 'First filing',
+          createdAt,
+          updatedAt: createdAt,
+          hearings: [],
+          deadlines: [],
+        }),
+      },
+    };
+    const service = new CasesService(prisma as unknown as PrismaService);
+
+    const created = await service.create('user-a', {
+      type: CaseType.LABOR,
+      authority: '  Labor court  ',
+      notes: '  First filing  ',
+    });
+
+    expect(created.id).toBe('case_new');
+    expect(created.status).toBe('PENDING');
+    expect(created.type).toBe('LABOR');
+    expect(created).not.toHaveProperty('userId');
+    expect(prisma.case.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: 'user-a',
+          type: 'LABOR',
+          status: 'PENDING',
+          authority: 'Labor court',
+          notes: 'First filing',
+          caseNumber: expect.stringMatching(/^SJS-\d{4}-[A-F0-9]{8}$/),
+        }),
+      }),
+    );
+    expect(prisma.case.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'case_new', userId: 'user-a', deletedAt: null },
+      }),
+    );
+  });
+
   it('creates a criminal case for a citizen and a deadline alert', async () => {
     const alerts = { create: jest.fn().mockResolvedValue({ id: 'alert-1' }) };
     const createdAt = new Date('2026-10-27T00:00:00.000Z');
@@ -159,7 +212,7 @@ describe('CasesService', () => {
         create: jest.fn().mockResolvedValue({ id: 'case-new' }),
         findFirst: jest.fn().mockResolvedValue({
           id: 'case-new',
-          caseNumber: 'SJ-test',
+          caseNumber: 'SJS-2026-ABCDEF01',
           type: CaseType.CRIMINAL,
           status: CaseStatus.PENDING,
           authority: null,
@@ -234,9 +287,9 @@ describe('case create rate limit', () => {
       switchToHttp: () => ({ getRequest: () => ({ user: sub ? { sub } : undefined }) }),
     }) as unknown as ExecutionContext;
 
-  it('allows ten creates in the window and rejects the eleventh', async () => {
+  it('allows twenty creates in the window and rejects the twenty-first', async () => {
     const redis = {
-      incrementWithTtl: jest.fn().mockResolvedValueOnce(10).mockResolvedValueOnce(11),
+      incrementWithTtl: jest.fn().mockResolvedValueOnce(20).mockResolvedValueOnce(21),
     };
     const guard = new CaseCreateRateLimitGuard(redis as never);
 

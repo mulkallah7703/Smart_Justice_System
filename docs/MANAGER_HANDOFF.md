@@ -1,119 +1,87 @@
-# Manager handoff — Smart Judicial System (Phase R)
+# Manager handoff — Smart Judicial System
 
-## Current status
+**Date:** 2026-10-10  
+**Launch target:** 11 October 2026, single Linux VPS  
+**Runbook:** `docs/LAUNCH-CHECKLIST.md`
 
 ```text
-READY FOR MANAGER DEMO
+APPLICATION CODE: ready to deploy once the owner supplies the host, DNS, TLS, OpenAI key, and Qdrant Cloud.
+NOT a claim that a public URL is already live.
 ```
 
-Not ready for full production cutover while Payment, official Nafath, and live OpenAI credentials remain unresolved.
+Nafath and Payment stay **deferred**. They are not launch blockers. The UI does not offer a fake Nafath login or a fake successful payment.
 
-## Completed modules
+## What is real
 
 | Module | Classification |
 |--------|----------------|
-| Auth (email/password) | REAL + VERIFIED (staging/dev stack) |
-| Users | REAL + VERIFIED |
-| Cases / Legal File | REAL + VERIFIED |
-| Documents + MinIO | REAL + VERIFIED |
-| Lawyers | REAL + VERIFIED |
-| Consultations / Booking | REAL + VERIFIED (payment deferred) |
-| Advisor pipeline | MOCK + VERIFIED (OpenAI live BLOCKED without keys) |
-| OCR (local) | REAL + VERIFIED (policy fail-closed) |
-| Embeddings / Qdrant / RAG / LLM | MOCK + VERIFIED locally; live OpenAI BLOCKED |
-| Legal Guide | MOCK + VERIFIED (same LLM mode) |
-| Alerts | REAL + VERIFIED |
-| Kiosk (API) | REAL + VERIFIED |
-| Judicial Card + QR | REAL + VERIFIED (not government-signed) |
-| Payment | DEFERRED |
-| Nafath | PRESENT BUT INACTIVE |
+| Auth (email/password) | REAL. Argon2id + JWT (15 minutes). |
+| Users / profile | REAL |
+| Cases | REAL, including create. Owner-only reads (IDOR checked). |
+| Documents | REAL. PDF, JPEG, PNG. 10 MB. Signature check. Stored in S3-compatible object storage. |
+| Lawyers + booking | REAL. After booking, the screen says payment is not available. |
+| Alerts | REAL. Home does not invent a deadline. |
+| Judicial card + QR | REAL application token. Not a government credential. Paid upgrade is marked coming later. |
+| Advisor, embeddings, RAG, legal guide | REAL OpenAI + Qdrant code path. **Live calls were not re-run here** (no API key). Production refuses mock mode. |
+| OCR | REAL local Tesseract in the worker image. Untrusted text stays `REVIEW_REQUIRED`. |
+| Kiosk API | REAL. No physical device. |
+| Payment | DEFERRED. Provider `deferred` never returns success. |
+| Nafath | DEFERRED. `NAFATH_MODE=inactive`. Not shown on login. |
 
-## Demo login
+## Demo login (development only)
 
-After `npx prisma db seed` (development only):
+`npx prisma db seed` creates:
 
 | Field | Value |
 |-------|--------|
 | Email | `dev.citizen@localhost.local` |
 | Password | `DevCitizen1!` |
 
-Or use **Create Account** (`/register`) then **Login** (`/login`).
+The seed **exits with an error** when `NODE_ENV` is `production`, `staging`, or unset. Do not run it on the VPS. Production users register through the site.
 
-Do not reuse these credentials in production.
-
-## Startup instructions
-
-Node **20.19.4** · Prisma **5.22.0**
+## How to start a local real-mode check
 
 ```text
 1. docker compose -f infra/docker/docker-compose.dev.yml up -d
-2. cd backend
-3. copy .env.example → .env (unique JWT_ACCESS_SECRET; CORS to frontend origin)
-4. npx prisma migrate deploy
-5. npx prisma generate
-6. npx prisma db seed          # optional, demo data
-7. npm run build
-8. npm run start:prod          # API :3000
-9. npm run worker:prod         # separate AI worker process
-10. cd ../frontend
-11. set VITE_API_BASE_URL=http://localhost:3000/api/v1
-12. npm run build && serve dist/   # or npm run dev for local UI
-13. GET http://localhost:3000/health
-14. GET http://localhost:3000/health/ready
+2. cd backend && cp .env.example .env
+3. npx prisma migrate deploy && npx prisma generate
+4. NODE_ENV=development npx prisma db seed     # local demo data only
+5. npm run build && npm run start:prod          # API :3000
+6. npm run worker:prod                          # separate terminal
+7. cd ../frontend
+8. VITE_API_MODE=real VITE_API_BASE_URL=http://localhost:3000/api/v1 npm run dev
 ```
 
-Compose binds Postgres/Redis/MinIO/Qdrant to `127.0.0.1` only.
+Dev Compose binds Postgres, Redis, Silo (S3), and Qdrant to `127.0.0.1` only. AI in that `.env.example` is mock. Production Compose is not.
 
-## Manager demo flow (~10 minutes)
+## Citizen path to show
 
-1. Splash → Onboarding → **Login** (or Register)
-2. Home / profile (`/users/me`)
-3. Legal File → cases
-4. Documents → list / upload small PDF
-5. Advisor → analyze → retrieve → answer (**Mock AI** unless OpenAI keys configured)
-6. Legal Guide → start → answer → summary
-7. Lawyers → availability → book (**skip Payment**)
-8. Alerts → mark read
-9. Kiosk → session start → scan (API only; no physical hardware claim)
-10. Judicial Card → card + QR (upgrade shows deferred)
-11. Logout
+1. Splash → onboarding → register → login
+2. Home (your name and card, no sample case)
+3. Legal file → add a case → upload a document on the case
+4. Advisor or legal guide (mock only if `AI_*_MODE=mock`; production uses OpenAI)
+5. Lawyers → book → confirmation that payment is not charged
+6. Alerts, judicial card, logout
 
-## Known limitations
+## Known limits to say out loud
 
-- Payment settlement / card paid upgrade deferred
-- Nafath inactive in UI (code retained)
-- Live OpenAI not verified without API keys
-- Physical kiosk QR/NFC hardware NOT VERIFIED
-- Judicial Card QR is application opaque token — not an official government credential
-- Readable Arabic TEXT_LAYER / OCR are `TRUSTED` and embedded. Garbled or low-confidence pages stay `REVIEW_REQUIRED`
+- Payment and paid card upgrades are not live (`PAYMENT_PROVIDER=deferred`)
+- Nafath is not live (`NAFATH_MODE=inactive`); the login UI does not offer it
+- The judicial card QR is an application token, not an official government ID
+- Kiosk hardware was not tested
+- Readable Arabic text and OCR pages are `TRUSTED` and embedded. Garbled or low-confidence pages stay `REVIEW_REQUIRED`
+- The session token is stored in browser `localStorage` (short TTL, not an HttpOnly cookie)
+- Object storage image is `pgsty/silo` because `minio/minio` is no longer on Docker Hub
+- Document advisor answers are experimental (`AI_ADVISOR_EXPERIMENTAL=true`): they can be wrong and are not legal advice
 
-## Production blockers
+## Owner actions before the public URL
 
-| Blocker | Notes |
-|---------|--------|
-| Official Nafath client + credentials | Required for government identity in production |
-| Real payment provider | `PAYMENT_PROVIDER=mock` refused in production |
-| Production secrets & private networking | Staging compose is localhost-bound |
-| Live OpenAI (if required in prod) | Keys not present in this environment |
-| Mock AI modes | Production env validation refuses mock AI adapters |
+| Action | Why |
+|--------|-----|
+| VPS, DNS, Let's Encrypt | No public host was provisioned in this work |
+| `OPENAI_API_KEY` | Production will not boot, and will not answer, without it |
+| Qdrant Cloud URL + API key | Same. Vectors are not stored in Postgres |
+| Off-site Postgres and object-storage backups | Documented, not automated |
+| Do not seed demo credentials | Known password must not exist in production |
 
-## Payment status
-
-**Payment intentionally deferred and untouched.**
-
-## Nafath status
-
-```text
-PRESENT IN PROJECT
-NOT USED BY ACTIVE LOGIN
-OFFICIAL INTEGRATION DEFERRED
-```
-
-## OpenAI status
-
-```text
-LIVE OPENAI VERIFICATION:
-BLOCKED — credentials unavailable
-```
-
-This demo environment uses Mock AI adapters unless operators configure OpenAI + Qdrant modes explicitly.
+SMTP is not used. There is no outbound mail to configure.

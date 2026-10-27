@@ -15,7 +15,7 @@ import styles from './HomeScreen.module.css';
 
 const HomeScreen = (): JSX.Element => {
   const navigate = useNavigate();
-  const { user, card, alert, services, cases } = useHomeData();
+  const { user, card, alert, services, cases, isLoading } = useHomeData();
 
   return (
     <ScreenShell variant="default">
@@ -26,9 +26,11 @@ const HomeScreen = (): JSX.Element => {
           userName={user.name}
         />
 
-        <div className={styles.cardWrap}>
-          <JudicialCardPreview card={card} onClick={() => navigate('/card')} />
-        </div>
+        {card ? (
+          <div className={styles.cardWrap}>
+            <JudicialCardPreview card={card} onClick={() => navigate('/card')} />
+          </div>
+        ) : null}
 
         <ScrollContent className={styles.content}>
           {alert ? (
@@ -41,7 +43,11 @@ const HomeScreen = (): JSX.Element => {
 
           <ServicesGrid services={services} />
 
-          <ActiveCasesList cases={cases} />
+          {isLoading ? (
+            <p role="status">{ar.home.loading}</p>
+          ) : (
+            <ActiveCasesList cases={cases} />
+          )}
         </ScrollContent>
 
         <BottomNav />

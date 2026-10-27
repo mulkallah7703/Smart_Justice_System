@@ -8,7 +8,7 @@ Docker Compose for **local** data plane only:
 |---------|------|
 | PostgreSQL 16 | `127.0.0.1:5432` |
 | Redis 7.2 | `127.0.0.1:6379` |
-| MinIO | `127.0.0.1:9000` (console `9001`) |
+| MinIO-compatible object storage (Silo image; `minio/minio` was removed from Docker Hub) | `127.0.0.1:9000` (console `9001`) |
 | Qdrant 1.12.5 | `127.0.0.1:6333` (local only; production uses **Qdrant Cloud**) |
 
 ```bash
@@ -44,6 +44,8 @@ docker compose -f infra/docker/docker-compose.production.yml \
 - Postgres / Redis / MinIO: **internal network only** (not published).  
 - Qdrant Cloud + OpenAI: external; keys on API/worker only.  
 - Nafath / Payment: **DEFERRED** (`inactive` / `deferred`).
+
+Kubernetes, Helm, and the old monitoring manifests under `infra/` were empty `# TODO` placeholders. They are not part of the launch path and have been removed so they cannot be mistaken for a deploy.
 
 ## CI
 

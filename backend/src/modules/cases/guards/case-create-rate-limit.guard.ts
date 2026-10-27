@@ -4,8 +4,8 @@ import { RedisService } from '../../../shared/cache/redis.service';
 import type { AuthenticatedUser } from '../../auth/types/auth.types';
 import { caseRateLimited } from '../cases.errors';
 
+const MAX_ATTEMPTS = 20;
 const WINDOW_SECONDS = 60;
-const MAX_ATTEMPTS = 10;
 
 @Injectable()
 export class CaseCreateRateLimitGuard implements CanActivate {
@@ -20,12 +20,11 @@ export class CaseCreateRateLimitGuard implements CanActivate {
       throw caseRateLimited();
     }
 
+    const key = `cases:create:user:${userId}`;
+
     let count: number;
     try {
-      count = await this.redis.incrementWithTtl(
-        `cases:create:user:${userId}`,
-        WINDOW_SECONDS,
-      );
+      count = await this.redis.incrementWithTtl(key, WINDOW_SECONDS);
     } catch {
       throw caseRateLimited();
     }

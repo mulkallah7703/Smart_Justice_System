@@ -11,7 +11,10 @@ import {
   MinLength,
 } from 'class-validator';
 
-/** Citizen-owned case. The owner id comes from the token, never the body. */
+/**
+ * The owner is the authenticated user. `userId`, `status`, `caseNumber`, and
+ * `lawyerId` are intentionally absent and rejected by the whitelist pipe.
+ */
 export class CreateCaseDto {
   @IsEnum(CaseType)
   type!: CaseType;

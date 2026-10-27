@@ -1,4 +1,4 @@
-import { createElement } from 'react';
+import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -11,29 +11,31 @@ describe('AdvisorExperimentalNote', () => {
   let root: Root;
 
   afterEach(() => {
-    root?.unmount();
+    act(() => {
+      root?.unmount();
+    });
     container?.remove();
   });
 
-  const render = (): void => {
+  const render = async (): Promise<void> => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
-    root.render(createElement(AdvisorExperimentalNote));
+    await act(async () => {
+      root.render(createElement(AdvisorExperimentalNote));
+    });
   };
 
   it('shows the experimental badge by default', async () => {
-    render();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await render();
     expect(container.textContent).toContain('تجريبي');
     expect(container.textContent).toContain('ليست استشارة قانونية');
   });
 
   it('hides the note when the experimental flag is off', async () => {
     vi.stubEnv('VITE_AI_ADVISOR_EXPERIMENTAL', 'false');
-    render();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(container.textContent).not.toContain('تجريبي');
+    await render();
+    expect(container.textContent ?? '').toBe('');
     vi.unstubAllEnvs();
   });
 });
