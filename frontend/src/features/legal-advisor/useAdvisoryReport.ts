@@ -1,10 +1,15 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ar } from '../../core/i18n/ar';
-
-import { mapAnswerToReport } from './mapAdvisor';
-import { loadAdvisorAnswer } from './advisorSession';
 import { isDomainLive } from '../../shared/api/mode';
+
+import { fetchAdvisorJobOutput } from './advisorApi';
+import { mapAnswerToReport } from './mapAdvisor';
+import {
+  loadAdvisorAnswer,
+  loadAdvisorSummary,
+  saveAdvisorSummary,
+} from './advisorSession';
 
 import type { AdvisoryReportData } from './advisor.types';
 
@@ -40,22 +45,67 @@ const mockAdvisoryReport = (jobId: string): AdvisoryReportData => ({
   disclaimer: ar.advisor.report.disclaimer,
 });
 
+const emptyAnswer = {
+  answer: '',
+  claims: [],
+  insufficientEvidence: false,
+};
+
 export const useAdvisoryReport = (
   jobId: string,
 ): UseAdvisoryReportResult => {
-  const report = useMemo(() => {
+  const live = isDomainLive('advisor');
+  const [report, setReport] = useState<AdvisoryReportData | null>(null);
+  const [isLoading, setIsLoading] = useState(live);
+
+  useEffect(() => {
+    let cancelled = false;
     const stored = loadAdvisorAnswer(jobId);
-    if (stored) {
-      return mapAnswerToReport(jobId, stored);
+    const cachedSummary = loadAdvisorSummary(jobId);
+
+    if (!live) {
+      setReport(
+        stored
+          ? mapAnswerToReport(jobId, stored, cachedSummary)
+          : mockAdvisoryReport(jobId || 'demo'),
+      );
+      setIsLoading(false);
+      return () => {
+        cancelled = true;
+      };
     }
-    if (!isDomainLive('advisor')) {
-      return mockAdvisoryReport(jobId || 'demo');
-    }
-    return null;
-  }, [jobId]);
+
+    setIsLoading(true);
+    void (async () => {
+      let summary = cachedSummary;
+      if (!summary && jobId) {
+        try {
+          summary = await fetchAdvisorJobOutput(jobId);
+          if (summary) {
+            saveAdvisorSummary(jobId, summary);
+          }
+        } catch {
+          summary = null;
+        }
+      }
+      if (cancelled) {
+        return;
+      }
+      if (!stored && !summary) {
+        setReport(null);
+      } else {
+        setReport(mapAnswerToReport(jobId, stored ?? emptyAnswer, summary));
+      }
+      setIsLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, live]);
 
   return {
     report,
-    isLoading: false,
+    isLoading,
   };
 };

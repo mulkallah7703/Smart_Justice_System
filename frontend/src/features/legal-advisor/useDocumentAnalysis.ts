@@ -65,9 +65,15 @@ export const parseSizeMb = (sizeLabel: string): number => {
   const ascii = sizeLabel
     .replace(/[٠-٩]/g, (digit) => String(ARABIC_INDIC.indexOf(digit)))
     .replace(/[۰-۹]/g, (digit) => String(EXTENDED_INDIC.indexOf(digit)));
-  const match = ascii.replace(/[^\d.]/g, '');
-  const value = Number.parseFloat(match);
-  return Number.isFinite(value) && value > 0 ? value : 0.1;
+  const match = ascii.match(/(\d+(?:\.\d+)?)/);
+  const value = match ? Number.parseFloat(match[1]) : Number.NaN;
+  if (!Number.isFinite(value) || value <= 0) {
+    return 0.1;
+  }
+  if (/(?:ك\.?\s*ب|\bkb\b)/i.test(ascii)) {
+    return value / 1024;
+  }
+  return value;
 };
 
 export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
@@ -162,7 +168,7 @@ export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
       setErrorMessage(null);
       fileList.forEach((file) => {
         const id = createId();
-        const sizeMB = Math.round((file.size / (1024 * 1024)) * 10) / 10;
+        const sizeMB = file.size / (1024 * 1024);
         const kind = detectKind(file.name, file.type);
 
         setFiles((current) => [
@@ -170,7 +176,7 @@ export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
           {
             id,
             name: file.name,
-            sizeMB: sizeMB || 0.1,
+            sizeMB,
             progress: 0,
             status: 'uploading',
             kind,

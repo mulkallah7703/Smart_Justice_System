@@ -781,7 +781,7 @@ export const parseAi = (env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): AiConfig => {
     textExtractorMode,
     ocrMode,
     pdfMaxPages: parsePositiveInt(env.AI_PDF_MAX_PAGES, 100, 'AI_PDF_MAX_PAGES'),
-    ocrDpi: parsePositiveInt(env.AI_OCR_DPI, 200, 'AI_OCR_DPI'),
+    ocrDpi: parsePositiveInt(env.AI_OCR_DPI, 300, 'AI_OCR_DPI'),
     ocrMaxPixels: parsePositiveInt(
       env.AI_OCR_MAX_PIXELS,
       16_777_216,

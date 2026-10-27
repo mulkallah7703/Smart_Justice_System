@@ -11,6 +11,7 @@ export interface AlertRecord {
   isRead: boolean;
   triggeredAt: Date;
   createdAt: Date;
+  caseId: string | null;
   deadline: { dueAt: Date } | null;
 }
 
@@ -26,4 +27,5 @@ export const mapAlert = (record: AlertRecord): AlertResponseDto => ({
   triggeredAt: toIso(record.triggeredAt),
   createdAt: toIso(record.createdAt),
   dueAt: record.deadline ? toIso(record.deadline.dueAt) : null,
+  caseId: record.caseId,
 });

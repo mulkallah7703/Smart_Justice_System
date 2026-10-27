@@ -54,15 +54,17 @@ export const mapGuideAnswer = (
   turn: mapGuideTurn(turn, clarificationCount),
 });
 
-const guideDurationDays = (turn: GuideTurn): number =>
+const guideDurationDays = (turn: GuideTurn, transcript = ''): number =>
   turn.durationDays ??
   inferDurationDays(
-    [turn.guidance ?? '', turn.understanding, ...turn.knownFacts].join('\n'),
+    [turn.guidance ?? '', turn.understanding, ...turn.knownFacts, transcript].join(
+      '\n',
+    ),
   ) ??
   0;
 
-const guideDurationValue = (turn: GuideTurn): string => {
-  const days = guideDurationDays(turn);
+const guideDurationValue = (turn: GuideTurn, transcript = ''): string => {
+  const days = guideDurationDays(turn, transcript);
   if (days > 0) {
     return `${days} يوماً حسب ما ورد في الحوار`;
   }
@@ -76,6 +78,7 @@ const UNVERIFIED_NOTE =
 export const mapGuideSummary = (
   sessionId: string,
   turn: GuideTurn,
+  transcript = '',
 ): GuideSummaryResponseDto => ({
   sessionId,
   resultTitle: turn.urgent
@@ -90,8 +93,8 @@ export const mapGuideSummary = (
   authorityValue:
     turn.likelyAuthority ?? 'تُحدد بحسب تفاصيل المسألة بعد مراجعة مختص',
   durationLabel: 'المدة النظامية',
-  durationValue: guideDurationValue(turn),
-  durationDays: guideDurationDays(turn),
+  durationValue: guideDurationValue(turn, transcript),
+  durationDays: guideDurationDays(turn, transcript),
   durationUnit: 'يوماً',
   docsTitle: 'مستندات يُستحسن تجهيزها',
   docs: turn.suggestedDocuments.map((label, index) => ({

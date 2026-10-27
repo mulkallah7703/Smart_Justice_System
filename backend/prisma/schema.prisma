@@ -488,6 +488,8 @@ model DocumentChunk {
   chunkIndex      Int
   /// Exact pageText.slice(startOffset, endOffset). Never rewritten.
   text            String   @db.Text
+  /// Saudi ruling section (HEADER, FACTS, REASONS, RULING, BODY) when known.
+  section         String?
   /// UTF-16 offsets into DocumentPage.text.
   startOffset     Int
   endOffset       Int

@@ -1,6 +1,8 @@
 import {
   GUIDE_MAX_CLARIFICATIONS,
   containsUnverifiedCitation,
+  greetingGuideTurn,
+  inferDurationDays,
   parseGuideTurn,
   readStoredGuideTurn,
   renderGuideReply,
@@ -286,6 +288,20 @@ describe('guide mappers', () => {
     expect(summary.steps).toEqual([{ number: 1, label: 'اجمع التقارير الطبية' }]);
     expect(summary.resultBody).toMatch(/غير مستندة إلى مصادر نظامية موثّقة/);
     expect(summary.caseTypeValue).not.toMatch(/إيجار/);
+  });
+
+  it('reads a duration stated in the user transcript', () => {
+    const summary = mapGuideSummary('s1', answerTurn(), 'حق الاعتراض خلال ثلاثين يوماً');
+    expect(summary.durationDays).toBe(30);
+    expect(summary.durationValue).toMatch(/30/);
+    expect(inferDurationDays('خلال ٣٠ يوماً')).toBe(30);
+  });
+
+  it('greets and continues instead of treating مرحبا as off-topic', () => {
+    const turn = greetingGuideTurn('مرحبا');
+    expect(turn?.clarificationQuestion).toMatch(/مرحباً/);
+    expect(turn?.guidance ?? '').not.toMatch(/خارج/);
+    expect(greetingGuideTurn('ما مهلة الاعتراض')).toBeNull();
   });
 
   it('ignores stored analysis of a foreign shape', () => {

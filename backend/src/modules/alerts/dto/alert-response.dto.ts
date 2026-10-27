@@ -13,6 +13,8 @@ export interface AlertResponseDto {
   createdAt: string;
   /** Present when the alert is linked to a deadline; used for countdown UI. */
   dueAt: string | null;
+  /** Owning case when the alert was raised for one. Never the user id. */
+  caseId: string | null;
 }
 
 export interface AlertListResult {

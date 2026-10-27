@@ -157,3 +157,52 @@ export const arabicScannedPdf = (): Buffer | null => {
   }
   return buildImagePdf(rgb, width, height);
 };
+
+const wrapArabic = (text: string, width: number): string[] => {
+  const words = text.split(/\s+/).filter((word) => word.length > 0);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > width && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  }
+  if (current) {
+    lines.push(current);
+  }
+  return lines;
+};
+
+/** Image-only PDF of a synthetic ruling, for real Tesseract measurement. */
+export const rulingImagePdf = (text: string): Buffer | null => {
+  const family = arabicOcrFontFamily();
+  if (!family) {
+    return null;
+  }
+  const width = 2480;
+  const height = 900;
+  const canvas = createCanvas(width, height);
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, width, height);
+  context.fillStyle = '#111111';
+  context.font = `56px ${family}`;
+  context.direction = 'rtl';
+  context.textAlign = 'right';
+  const lines = wrapArabic(text, 70);
+  lines.forEach((line, index) => {
+    context.fillText(line, width - 48, 90 + index * 68);
+  });
+  const image = context.getImageData(0, 0, width, height);
+  const rgb = Buffer.alloc(width * height * 3);
+  for (let source = 0, target = 0; source < image.data.length; source += 4, target += 3) {
+    rgb[target] = image.data[source]!;
+    rgb[target + 1] = image.data[source + 1]!;
+    rgb[target + 2] = image.data[source + 2]!;
+  }
+  return buildImagePdf(rgb, width, height);
+};

@@ -1,5 +1,6 @@
 import {
   chunkPageText,
+  chunkRulingPage,
   DEFAULT_AI_CHUNK_MAX_CHARS,
   isCodeUnitBoundary,
 } from '../src/modules/ai/chunking/text-chunker';
@@ -127,6 +128,27 @@ describe('chunkPageText', () => {
         withOverlap[i - 1].startOffset,
       );
     }
+  });
+
+  it('keeps Saudi ruling sections and exact substrings', () => {
+    const page =
+      'رقم القضية 7890\nالوقائع\nادعت الأم.\nالأسباب\nدفع الأب.\nمنطوق الحكم\nحضانة الأب.';
+    const spans = chunkRulingPage(page, 500);
+    expect(spans.map((span) => span.section)).toEqual([
+      'HEADER',
+      'FACTS',
+      'REASONS',
+      'RULING',
+    ]);
+    for (const span of spans) {
+      expect(page.slice(span.startOffset, span.endOffset)).toBe(span.text);
+    }
+    expect(spans.find((span) => span.section === 'RULING')?.text).toContain(
+      'حضانة الأب',
+    );
+    expect(spans.find((span) => span.section === 'REASONS')?.text).toContain(
+      'دفع الأب',
+    );
   });
 
   it('rejects overlap >= maxChars', () => {

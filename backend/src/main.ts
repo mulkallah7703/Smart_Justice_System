@@ -7,6 +7,7 @@ import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app.module';
 import type { AppConfig } from './config/env.validation';
+import { AlertsGateway } from './modules/alerts/alerts.gateway';
 import { GlobalExceptionFilter } from './shared/exceptions/http-exception.filter';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
 import { createValidationPipe } from './shared/validation/validation.config';
@@ -60,6 +61,10 @@ async function bootstrap(): Promise<void> {
   app.useGlobalInterceptors(new TransformInterceptor());
 
   await app.listen(port);
+  app.get(AlertsGateway).bind(
+    app.getHttpServer(),
+    configService.get('jwt', { infer: true }).accessSecret,
+  );
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.log(`API received ${signal}; closing HTTP and Nest context`);

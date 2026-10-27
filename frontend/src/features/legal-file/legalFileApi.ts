@@ -80,8 +80,26 @@ const mockCaseDetails = (): Record<string, FrontendCaseDetail> => {
   };
 };
 
+export const buildCreateCaseBody = (input: {
+  type: BackendCaseType;
+  authority?: string;
+  objectionDays?: number;
+}): { type: BackendCaseType; authority?: string; objectionDays?: number } => {
+  const authority = input.authority?.trim();
+  const days = input.objectionDays;
+  return {
+    type: input.type,
+    ...(authority && authority.length >= 2 ? { authority } : {}),
+    ...(typeof days === 'number' && days >= 1 && days <= 365
+      ? { objectionDays: days }
+      : {}),
+  };
+};
+
 export const createLegalCase = async (input: {
   type: BackendCaseType;
+  authority?: string;
+  objectionDays?: number;
 }): Promise<FrontendCaseDetail> => {
   if (isMockApiMode()) {
     await wait(200);
@@ -102,7 +120,7 @@ export const createLegalCase = async (input: {
 
   const record = await apiRequest<BackendCaseDetail>(endpoints.legalFile.cases, {
     method: 'POST',
-    body: { type: input.type },
+    body: buildCreateCaseBody(input),
   });
   return mapBackendCaseDetail(record);
 };

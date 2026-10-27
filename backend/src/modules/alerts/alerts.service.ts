@@ -23,6 +23,7 @@ const ALERT_SELECT = {
   isRead: true,
   triggeredAt: true,
   createdAt: true,
+  caseId: true,
   deadline: { select: { dueAt: true } },
 } satisfies Prisma.AlertSelect;
 
@@ -151,7 +152,7 @@ export class AlertsService {
         type: input.type,
       });
       const mapped = mapAlert(created);
-      this.gateway.notify(input.userId, mapped.id);
+      this.gateway.notify(input.userId, mapped.id, mapped.caseId);
       return mapped;
     } catch {
       throw alertFailed();

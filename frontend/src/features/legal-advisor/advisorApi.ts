@@ -93,6 +93,25 @@ export const pollAdvisorJob = async (
   return mapAdvisorJobPoll(record);
 };
 
+/** Analysis summary stored on a finished job (`result.output`). */
+export const fetchAdvisorJobOutput = async (
+  jobId: string,
+): Promise<string | null> => {
+  if (isMockApiMode()) {
+    return null;
+  }
+  const record = await apiRequest<BackendAiJobStatus>(
+    endpoints.advisor.jobs(jobId),
+  );
+  if (!record.result || typeof record.result !== 'object') {
+    return null;
+  }
+  const output = (record.result as { output?: unknown }).output;
+  return typeof output === 'string' && output.trim().length > 0
+    ? output.trim()
+    : null;
+};
+
 export const retrieveAdvisorEvidence = async (
   query: string,
   scope?: { caseId?: string; documentIds?: string[] },

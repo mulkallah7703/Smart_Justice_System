@@ -10,6 +10,7 @@ import { normalisePageText } from '../src/modules/ai/providers/pdf/page-text';
 import {
   detectObjectionDays,
   extractLegalSignals,
+  stripStrayArticleNote,
 } from '../src/modules/ai/providers/legal-signals';
 import { citySearchTerms } from '../src/modules/lawyers/city-search';
 import { isExtractedTextPage } from '../src/modules/ai/providers/text-extractor.interface';
@@ -40,7 +41,7 @@ describe('corrupted Arabic rulings', () => {
     expect(report.chosenAccuracy).toBe(1);
     expect(report.pages.every((page) => page.method === 'OCR')).toBe(true);
     expect(report.pages.every((page) => page.trust === 'TRUSTED')).toBe(true);
-  });
+  }, 30_000);
 });
 
 describe('text-layer repairs', () => {
@@ -113,6 +114,14 @@ describe('legal signals and deadlines', () => {
     expect(signals.finality.join(' ')).toMatch(/نهائي/);
     expect(detectObjectionDays('الحكم نهائي غير قابل للاعتراض')).toBeNull();
     expect(detectObjectionDays('يجوز الاعتراض خلال ثلاثين يوما')).toBe(30);
+    expect(
+      detectObjectionDays('حق الاعتراض على هذا الحكم خلال ثلاثين يوماً'),
+    ).toBe(30);
+    expect(detectObjectionDays('من تاريخ تسلم الحكم خلال ١٥ يوماً')).toBe(15);
+    expect(detectObjectionDays('استئناف خلال ستين يوما')).toBe(60);
+    expect(stripStrayArticleNote('المادة غير مذكورة. حكمت المحكمة بالبراءة.')).toBe(
+      'حكمت المحكمة بالبراءة.',
+    );
   });
 });
 

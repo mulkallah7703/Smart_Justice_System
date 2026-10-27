@@ -51,7 +51,7 @@ describe('Lawyers (e2e)', () => {
       data: {
         userId: lawyerUser.id,
         licenseNumber,
-        specialties: ['RENTAL'],
+        specialties: ['RENTAL', 'COMMERCIAL'],
         city: `E2ECity${suffix}`,
         bio: 'E2E lawyer bio',
         rating: 4.9,
@@ -153,6 +153,20 @@ describe('Lawyers (e2e)', () => {
       response.body.data.every((item: { specialties: string[] }) =>
         item.specialties.includes('RENTAL'),
       ),
+    ).toBe(true);
+    expect(
+      response.body.data.some((item: { id: string }) => item.id === otherLawyerId),
+    ).toBe(false);
+  });
+
+  it('maps an Arabic specialty search onto the stored enum', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`/api/v1/lawyers?q=${encodeURIComponent('تجاري')}&limit=50`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(
+      response.body.data.some((item: { id: string }) => item.id === lawyerId),
     ).toBe(true);
     expect(
       response.body.data.some((item: { id: string }) => item.id === otherLawyerId),

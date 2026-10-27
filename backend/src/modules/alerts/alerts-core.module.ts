@@ -10,6 +10,6 @@ import { AlertsService } from './alerts.service';
  */
 @Module({
   providers: [AlertsGateway, AlertsService],
-  exports: [AlertsService],
+  exports: [AlertsService, AlertsGateway],
 })
 export class AlertsCoreModule {}

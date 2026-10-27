@@ -434,6 +434,31 @@ describe('AiRetrievalService', () => {
     expect(result.results[0]!.text).not.toContain('500,000');
   });
 
+  it('adds the ruling section when the vector search misses it', async () => {
+    prisma.document.findMany.mockResolvedValue([{ id: 'doc-custody' }]);
+    prisma.documentChunk.findMany.mockImplementation(async (args) => {
+      if (args.select?.id && !args.where?.id) {
+        return [{ id: 'ruling-missed' }];
+      }
+      return [
+        chunkRow('ruling-missed', 'منطوق الحكم: حضانة الأب', {
+          documentId: 'doc-custody',
+          section: 'RULING',
+        }),
+      ];
+    });
+
+    const result = await service.retrieve('user-a', {
+      query: 'ما منطوق الحكم؟',
+      documentIds: ['doc-custody'],
+    });
+
+    expect(result.results.map((item) => item.provenance.documentChunkId)).toContain(
+      'ruling-missed',
+    );
+    expect(result.results[0]!.text).toContain('حضانة الأب');
+  });
+
   it('returns nothing when the case filter matches no owned document', async () => {
     prisma.document.findMany.mockResolvedValue([]);
     const result = await service.retrieve('user-a', {

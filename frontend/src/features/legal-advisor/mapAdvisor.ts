@@ -70,9 +70,26 @@ export const mapClaimsToFindings = (
     };
   });
 
+const HIJRI_IN_TEXT =
+  /(\d{1,2}|[٠-٩]{1,2})\s+(?:محرم|صفر|ربيع الأول|ربيع الآخر|ربيع الثاني|جمادى الأولى|جمادى الآخرة|رجب|شعبان|رمضان|شوال|ذو القعدة|ذو الحجة)\s+(\d{3,4}|[٠-٩]{3,4})/u;
+
+/** Hijri date written in the analysis, otherwise today's Umm al-Qura date. */
+export const reportHijriDate = (text: string, now = new Date()): string => {
+  const found = text.match(HIJRI_IN_TEXT);
+  if (found) {
+    return found[0];
+  }
+  return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(now);
+};
+
 export const mapAnswerToReport = (
   jobId: string,
   answer: AdvisorAnswerView,
+  summary?: string | null,
 ): AdvisoryReportData => {
   const citationLines = answer.claims
     .flatMap((claim) =>
@@ -85,8 +102,19 @@ export const mapAnswerToReport = (
     )
     .filter((line, index, all) => all.indexOf(line) === index);
 
+  const summarySection = summary?.trim()
+    ? [
+        {
+          id: 'summary',
+          title: ar.advisor.report.summaryTitle,
+          body: summary.trim(),
+        },
+      ]
+    : [];
+
   const sections = answer.insufficientEvidence
     ? [
+        ...summarySection,
         {
           id: 'insufficient',
           title: ar.advisor.opinion.insufficientTitle,
@@ -94,11 +122,16 @@ export const mapAnswerToReport = (
         },
       ]
     : [
-        {
-          id: 'answer',
-          title: ar.advisor.opinion.answerTitle,
-          body: answer.answer,
-        },
+        ...summarySection,
+        ...(answer.answer.trim()
+          ? [
+              {
+                id: 'answer',
+                title: ar.advisor.opinion.answerTitle,
+                body: answer.answer,
+              },
+            ]
+          : []),
         ...(answer.claims.length > 0
           ? [
               {
@@ -124,7 +157,7 @@ export const mapAnswerToReport = (
     brandTitle: ar.advisor.report.brandTitle,
     brandSubtitle: ar.advisor.report.brandSubtitle,
     reference: jobId,
-    dateHijri: ar.advisor.report.dateHijri,
+    dateHijri: reportHijriDate(`${summary ?? ''}\n${answer.answer}`),
     watermark: ar.advisor.report.watermark,
     sections,
     disclaimer: ar.advisor.report.disclaimer,

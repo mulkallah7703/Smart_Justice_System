@@ -20,6 +20,8 @@ export interface OcrPageInput {
    * fetch anything, and carries no meaning outside the page currently supplied.
    */
   pageNumber: number;
+  /** Digit-focused header pass. The full page uses the default segmentation. */
+  pass?: 'page' | 'header-digits';
 }
 
 export interface OcrPageResult {

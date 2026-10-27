@@ -1,7 +1,9 @@
 import type { AdvisorAnswerView } from './advisor.types';
 
 const storageKey = (jobId: string): string => `advisor:answer:${jobId}`;
+const summaryKey = (jobId: string): string => `advisor:summary:${jobId}`;
 const scopeKey = (jobId: string): string => `advisor:scope:${jobId}`;
+const latestScopeKey = 'advisor:scope:latest';
 
 export interface AdvisorScope {
   documentIds: string[];
@@ -9,20 +11,11 @@ export interface AdvisorScope {
 }
 
 /** Remembers which documents this analysis job may answer from. */
-export const saveAdvisorScope = (jobId: string, scope: AdvisorScope): void => {
-  try {
-    sessionStorage.setItem(scopeKey(jobId), JSON.stringify(scope));
-  } catch {
-    /* storage may be unavailable */
+const readScope = (raw: string | null): AdvisorScope | null => {
+  if (!raw) {
+    return null;
   }
-};
-
-export const loadAdvisorScope = (jobId: string): AdvisorScope | null => {
   try {
-    const raw = sessionStorage.getItem(scopeKey(jobId));
-    if (!raw) {
-      return null;
-    }
     const parsed = JSON.parse(raw) as AdvisorScope;
     if (!parsed || !Array.isArray(parsed.documentIds)) {
       return null;
@@ -31,6 +24,48 @@ export const loadAdvisorScope = (jobId: string): AdvisorScope | null => {
       documentIds: parsed.documentIds.filter((id) => typeof id === 'string'),
       caseId: typeof parsed.caseId === 'string' ? parsed.caseId : undefined,
     };
+  } catch {
+    return null;
+  }
+};
+
+export const saveAdvisorScope = (jobId: string, scope: AdvisorScope): void => {
+  try {
+    const payload = JSON.stringify(scope);
+    sessionStorage.setItem(scopeKey(jobId), payload);
+    sessionStorage.setItem(latestScopeKey, payload);
+  } catch {
+    /* storage may be unavailable */
+  }
+};
+
+export const loadAdvisorScope = (jobId: string): AdvisorScope | null => {
+  try {
+    const direct = readScope(sessionStorage.getItem(scopeKey(jobId)));
+    if (direct) {
+      return direct;
+    }
+    if (!jobId || jobId === 'demo') {
+      return readScope(sessionStorage.getItem(latestScopeKey));
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+export const saveAdvisorSummary = (jobId: string, summary: string): void => {
+  try {
+    sessionStorage.setItem(summaryKey(jobId), summary);
+  } catch {
+    /* storage may be unavailable */
+  }
+};
+
+export const loadAdvisorSummary = (jobId: string): string | null => {
+  try {
+    const raw = sessionStorage.getItem(summaryKey(jobId));
+    return raw && raw.trim().length > 0 ? raw : null;
   } catch {
     return null;
   }

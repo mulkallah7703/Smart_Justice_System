@@ -374,6 +374,7 @@
       brandSubtitle: 'تقرير استرشادي — تحليل آلي',
       reference: 'AR-1446-0827',
       dateHijri: '١٤٤٦/٠٨/٢٧هـ',
+      summaryTitle: 'ملخص التحليل',
       watermark: 'استرشادي',
       shareAria: 'مشاركة التقرير',
       downloadAria: 'تنزيل التقرير',
@@ -646,6 +647,8 @@
     tabsAria: 'أقسام الملف العدلي',
     addCase: 'إضافة قضية أو متابعة جديدة',
     addCaseTypeLabel: 'نوع القضية',
+    addCaseAuthorityLabel: 'الجهة',
+    addCaseObjectionLabel: 'مهلة الاعتراض بالأيام',
     addCaseSubmit: 'حفظ القضية',
     addCaseFailed: 'تعذر إنشاء القضية. حاول مرة أخرى.',
     tabs: {

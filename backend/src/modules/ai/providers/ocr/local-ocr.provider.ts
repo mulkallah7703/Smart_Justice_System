@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createWorker, type Worker } from 'tesseract.js';
+import { createWorker, PSM, type Worker } from 'tesseract.js';
 
 import type { AppConfig } from '../../../../config/env.validation';
 import {
@@ -49,10 +49,24 @@ export class LocalOcrProvider implements OcrProvider, OnModuleDestroy {
     const worker = await this.getWorker();
 
     try {
+      if (input.pass === 'header-digits') {
+        await worker.setParameters({
+          tessedit_char_whitelist:
+            '0123456789٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹/-. ',
+          tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+        });
+      } else {
+        await worker.setParameters({
+          tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+        });
+      }
       const recognised = await withTimeout(
         worker.recognize(input.image),
         ocrTimeoutMs,
       );
+      if (input.pass === 'header-digits') {
+        await worker.setParameters({ tessedit_char_whitelist: '' });
+      }
 
       const text = recognised.data.text.replace(/\r\n?/g, '\n').trim();
       const confidence =

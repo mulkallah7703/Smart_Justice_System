@@ -17,6 +17,7 @@ const alertRecord = (overrides: Partial<AlertRecord> = {}): AlertRecord => ({
   isRead: false,
   triggeredAt: new Date('2030-01-01T10:00:00.000Z'),
   createdAt: new Date('2030-01-01T10:00:00.000Z'),
+  caseId: 'case-1',
   deadline: { dueAt: new Date('2030-01-05T10:00:00.000Z') },
   ...overrides,
 });
@@ -63,9 +64,9 @@ describe('mapAlert', () => {
       triggeredAt: '2030-01-01T10:00:00.000Z',
       createdAt: '2030-01-01T10:00:00.000Z',
       dueAt: '2030-01-05T10:00:00.000Z',
+      caseId: 'case-1',
     });
     expect(mapped).not.toHaveProperty('userId');
-    expect(mapped).not.toHaveProperty('caseId');
     expect(mapped).not.toHaveProperty('deadlineId');
   });
 
@@ -221,6 +222,6 @@ describe('AlertsService', () => {
       body: 'ثلاثين يوماً',
     });
 
-    expect(notify).toHaveBeenCalledWith(userId, 'new-alert');
+    expect(notify).toHaveBeenCalledWith(userId, 'new-alert', 'case-1');
   });
 });

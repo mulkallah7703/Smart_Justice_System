@@ -206,6 +206,7 @@ describe('pricing service', () => {
   const consultation = {
     id: 'consult-1',
     type: 'INSTANT',
+    status: 'PENDING',
     scheduledAt: new Date('2030-02-03T06:00:00Z'),
     lawyer: { priceFrom: 150, user: { name: 'DEV Lawyer' } },
   };
@@ -228,6 +229,16 @@ describe('pricing service', () => {
     await expect(service.quoteConsultation('user-1', 'consult-1')).resolves.toMatchObject({
       discountPct: 0,
       payableMinor: 15000,
+    });
+  });
+
+  it('refuses to price a cancelled consultation', async () => {
+    const service = new PricingService(
+      prismaFor({ ...consultation, status: 'CANCELLED' }, { discountPct: 0 }),
+    );
+
+    await expect(service.quoteConsultation('user-1', 'consult-1')).rejects.toMatchObject({
+      code: 'PAYMENT_CONSULTATION_NOT_PAYABLE',
     });
   });
 

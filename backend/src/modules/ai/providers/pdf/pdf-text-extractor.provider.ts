@@ -8,6 +8,7 @@ import {
   OCR_PROVIDER,
   type OcrProvider,
 } from '../ocr-provider.interface';
+import { cropHeaderPng, mergeHeaderReading, prepareOcrPng } from '../ocr/ocr-image';
 import type {
   DocumentSource,
   ExtractedDocument,
@@ -161,15 +162,31 @@ export class PdfTextExtractor implements TextExtractor {
       maxPixels,
     });
 
+    const prepared = await prepareOcrPng(rendered.image);
     const recognised = await this.ocr.recognise({
-      image: rendered.image,
+      image: prepared,
       mimeType: rendered.mimeType,
       languageHints: source.languageHints,
       pageNumber,
     });
+    let headerText = '';
+    if (recognised.text.trim().length > 0) {
+      try {
+        const header = await this.ocr.recognise({
+          image: await cropHeaderPng(prepared),
+          mimeType: rendered.mimeType,
+          languageHints: source.languageHints,
+          pageNumber,
+          pass: 'header-digits',
+        });
+        headerText = header.text;
+      } catch {
+        headerText = '';
+      }
+    }
 
     const warnings = [...recognised.warnings];
-    const text = recognised.text;
+    const text = mergeHeaderReading(recognised.text, headerText);
     return {
       engine: recognised.engine,
       page: {

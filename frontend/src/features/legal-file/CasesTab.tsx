@@ -35,6 +35,8 @@ const CasesTab = ({
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [caseType, setCaseType] = useState<BackendCaseType>('PERSONAL');
+  const [authority, setAuthority] = useState('');
+  const [objectionDays, setObjectionDays] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -72,9 +74,16 @@ const CasesTab = ({
             }
             setSaving(true);
             setFormError(null);
-            void createLegalCase({ type: caseType })
+            const days = Number.parseInt(objectionDays, 10);
+            void createLegalCase({
+              type: caseType,
+              authority,
+              objectionDays: Number.isFinite(days) ? days : undefined,
+            })
               .then(() => {
                 setShowForm(false);
+                setAuthority('');
+                setObjectionDays('');
                 onCreated?.();
               })
               .catch(() => {
@@ -98,6 +107,24 @@ const CasesTab = ({
                 </option>
               ))}
             </select>
+          </label>
+          <label>
+            {ar.legalFile.addCaseAuthorityLabel}
+            <input
+              aria-label={ar.legalFile.addCaseAuthorityLabel}
+              value={authority}
+              maxLength={200}
+              onChange={(event) => setAuthority(event.target.value)}
+            />
+          </label>
+          <label>
+            {ar.legalFile.addCaseObjectionLabel}
+            <input
+              aria-label={ar.legalFile.addCaseObjectionLabel}
+              inputMode="numeric"
+              value={objectionDays}
+              onChange={(event) => setObjectionDays(event.target.value)}
+            />
           </label>
           <button type="submit" disabled={saving}>
             {ar.legalFile.addCaseSubmit}

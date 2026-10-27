@@ -93,7 +93,7 @@ describe('Arabic document pipeline', () => {
 
     expect(bytes.equals(snapshot)).toBe(true);
     expect(result.pages[0]).toMatchObject({ method: 'OCR', status: 'EXTRACTED' });
-    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledTimes(2);
     const image = spy.mock.calls[0]?.[0].image;
     expect(image?.subarray(0, 8).equals(PNG)).toBe(true);
   });

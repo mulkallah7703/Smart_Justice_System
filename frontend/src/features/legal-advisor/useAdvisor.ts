@@ -47,7 +47,8 @@ export const useAdvisorQuestion = (
 
     try {
       // Evidence retrieve then answer — answer re-retrieves server-side.
-      const scope = loadAdvisorScope(jobId) ?? undefined;
+      const scope =
+        loadAdvisorScope(jobId) ?? loadAdvisorScope('demo') ?? undefined;
       await retrieveAdvisorEvidence(trimmed, scope);
       setPhase('answering');
       const result = await answerAdvisorQuery(trimmed, scope);

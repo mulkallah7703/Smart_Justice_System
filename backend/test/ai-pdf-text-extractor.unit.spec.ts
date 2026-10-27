@@ -302,8 +302,9 @@ describe('PdfTextExtractor — isolation', () => {
 
     await createPdfTextExtractor({ ocr }).extract(source(mixedTextAndBlankPdf()));
 
-    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledTimes(2);
     expect(spy.mock.calls[0][0].pageNumber).toBe(2);
+    expect(spy.mock.calls[1][0].pass).toBe('header-digits');
   });
 
   it('performs no network access', async () => {

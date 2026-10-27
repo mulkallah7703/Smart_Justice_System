@@ -27,6 +27,18 @@ const kindClassMap: Record<FileRowKind, string> = {
   doc: styles.iconDoc,
 };
 
+/** Megabytes under 1 are shown in KB so a 270 KB file is not labelled 270 MB. */
+export const formatSizeLabel = (sizeMB: number): string => {
+  if (!Number.isFinite(sizeMB) || sizeMB <= 0) {
+    return '0 ك.ب';
+  }
+  if (sizeMB < 1) {
+    return `${Math.max(1, Math.round(sizeMB * 1024))} ك.ب`;
+  }
+  const rounded = Math.round(sizeMB * 10) / 10;
+  return `${rounded} م.ب`;
+};
+
 const progressFillClass = (progress: number): string => {
   const snapped = Math.min(100, Math.max(0, Math.round(progress / 5) * 5));
   const key = `p${snapped}` as keyof typeof styles;
@@ -42,7 +54,7 @@ const FileRow = ({
   doneLabel,
   onRemove,
 }: FileRowProps): JSX.Element => {
-  const sizeLabel = `${sizeMB} م.ب`;
+  const sizeLabel = formatSizeLabel(sizeMB);
 
   return (
     <div className={styles.row}>

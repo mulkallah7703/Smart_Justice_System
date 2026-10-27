@@ -49,7 +49,13 @@ export class AiRetrievalService {
   ): Promise<RetrieveResponseDto> {
     const ai = this.configService.get('ai', { infer: true });
 
-    const limit = body.limit ?? ai.retrievalDefaultLimit;
+    const scoped =
+      Boolean(body.caseId) || Boolean(body.documentIds && body.documentIds.length > 0);
+    const limit =
+      body.limit ??
+      (scoped
+        ? Math.min(ai.retrievalMaxLimit, Math.max(ai.retrievalDefaultLimit * 2, 12))
+        : ai.retrievalDefaultLimit);
     if (limit < 1 || limit > ai.retrievalMaxLimit) {
       throw aiRetrievalConfigMismatch();
     }
@@ -142,6 +148,36 @@ export class AiRetrievalService {
     }
 
     const deduped = this.dedupeByChunkId(hits);
+    if (scopedDocumentIds && scopedDocumentIds.length > 0) {
+      const priorityIds = await this.findScopedPriorityChunkIds(
+        userId,
+        body,
+        scopedDocumentIds,
+        embedModel,
+      );
+      for (const chunkId of priorityIds) {
+        if (deduped.some((hit) => hit.chunkId === chunkId)) {
+          continue;
+        }
+        deduped.push({
+          chunkId,
+          score: 0.95,
+          payload: {
+            chunkId,
+            documentId: scopedDocumentIds[0] ?? '',
+            documentPageId: '',
+            userId,
+            pageNumber: 0,
+            chunkIndex: 0,
+            pipelineVersion: AI_PIPELINE_VERSION,
+            embeddingModel: embedModel,
+            extractionMethod: 'OCR',
+            trust: 'TRUSTED',
+            section: 'RULING',
+          },
+        });
+      }
+    }
     if (deduped.length === 0) {
       return mapRetrieveResponse({
         query: body.query,
@@ -256,6 +292,45 @@ export class AiRetrievalService {
     return rows.map((row) => row.id);
   }
 
+  /**
+   * Scoped questions must still see the ruling (منطوق الحكم) and any chunk
+   * that literally contains a distinctive query word, even when the vector
+   * rank misses that section.
+   */
+  private async findScopedPriorityChunkIds(
+    userId: string,
+    body: RetrieveQueryDto,
+    documentIds: readonly string[],
+    embedModel: string,
+  ): Promise<string[]> {
+    const keyword = longestArabicToken(body.query);
+    const rows = await this.prisma.documentChunk.findMany({
+      where: {
+        pipelineVersion: AI_PIPELINE_VERSION,
+        embeddingStatus: 'READY',
+        embeddingModel: embedModel,
+        documentPage: { trust: 'TRUSTED' },
+        document: {
+          userId,
+          deletedAt: null,
+          id: { in: [...documentIds] },
+          ...(body.caseId ? { caseId: body.caseId } : {}),
+        },
+        OR: [
+          { section: 'RULING' },
+          { text: { contains: 'منطوق الحكم' } },
+          { text: { contains: 'نص الحكم' } },
+          ...(keyword
+            ? [{ text: { contains: keyword } }]
+            : []),
+        ],
+      },
+      select: { id: true },
+      take: 8,
+    });
+    return rows.map((row) => row.id);
+  }
+
   private dedupeByChunkId(
     hits: readonly VectorSearchHit[],
   ): VectorSearchHit[] {
@@ -266,11 +341,22 @@ export class AiRetrievalService {
         best.set(hit.chunkId, hit);
       }
     }
-    return [...best.values()].sort((a, b) => {
-      if (b.score !== a.score) {
-        return b.score - a.score;
+    return [...best.values()].sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
       }
-      return a.chunkId.localeCompare(b.chunkId);
+      return left.chunkId.localeCompare(right.chunkId);
     });
   }
 }
+
+const longestArabicToken = (query: string): string | null => {
+  const tokens = query.match(/[\u0621-\u064A]{4,}/gu) ?? [];
+  let best: string | null = null;
+  for (const token of tokens) {
+    if (!best || token.length > best.length) {
+      best = token;
+    }
+  }
+  return best;
+};

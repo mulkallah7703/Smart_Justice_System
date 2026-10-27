@@ -215,4 +215,31 @@ describe('advisorApi (real mode)', () => {
       pageNumber: 2,
     });
   });
+
+  it('sends caseId and documentIds when the question is case-scoped', async () => {
+    vi.stubEnv('VITE_API_MODE', 'real');
+    vi.stubEnv('VITE_API_BASE_URL', REAL_BASE_URL);
+    authStore.getState().setTokens('advisor-jwt');
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        data: {
+          answer: 'حضانة الأب',
+          claims: [],
+          insufficientEvidence: false,
+          model: 'gpt-4o-mini',
+        },
+        meta: {},
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await answerAdvisorQuery('لمن الحضانة؟', {
+      caseId: 'case-custody',
+      documentIds: ['doc-custody'],
+    });
+    expect(JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body))).toEqual({
+      query: 'لمن الحضانة؟',
+      caseId: 'case-custody',
+      documentIds: ['doc-custody'],
+    });
+  });
 });

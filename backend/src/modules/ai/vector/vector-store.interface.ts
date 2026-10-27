@@ -16,6 +16,8 @@ export interface VectorPointPayload {
   embeddingModel: string;
   extractionMethod: 'TEXT_LAYER' | 'OCR';
   trust: 'TRUSTED';
+  /** Ruling section when the chunker labelled one. */
+  section?: string | null;
 }
 
 export interface VectorUpsertPoint {

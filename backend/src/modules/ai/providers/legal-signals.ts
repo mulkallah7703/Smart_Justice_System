@@ -35,7 +35,11 @@ export const extractLegalSignals = (text: string): LegalSignals => {
   if (/حكم\s+نهائي|حكم\s+قطعي|غير\s+قابل\s+للاعتراض/u.test(text)) {
     finality.push('الحكم موصوف بأنه نهائي أو غير قابل للاعتراض في النص');
   }
-  if (/يجوز\s+الاعتراض|مهلة\s+اعتراض|اعتراض\s+خلال/u.test(text)) {
+  if (
+    /حق\s+الاعتراض|يجوز\s+الاعتراض|مهلة\s+اعتراض|اعتراض\s+خلال|استئناف\s+خلال|من\s+تاريخ\s+تسلم\s+الحكم/u.test(
+      text,
+    )
+  ) {
     finality.push('النص يذكر ميعاد اعتراض مفتوحاً');
   }
 
@@ -64,28 +68,65 @@ export const describeLegalSignals = (text: string): string => {
   );
 };
 
-const WORD_DAYS: Readonly<Record<string, number>> = {
-  ثلاثين: 30,
-  ثلاثون: 30,
-  ستين: 60,
-  ستون: 60,
-};
+const WORD_DAYS: ReadonlyArray<readonly [string, number]> = [
+  ['ثلاثين', 30],
+  ['ثلاثون', 30],
+  ['ستين', 60],
+  ['ستون', 60],
+  ['تسعين', 90],
+  ['عشرين', 20],
+  ['خمسة عشر', 15],
+  ['عشرة', 10],
+  ['سبعة', 7],
+  ['خمسة', 5],
+];
 
-/** Objection window explicitly written in a ruling. Final rulings without an open window return null. */
+const toAsciiDigits = (value: string): string =>
+  value
+    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
+
+/** Folds OCR noise that should not change the legal phrase. */
+const foldRulingText = (value: string): string =>
+  toAsciiDigits(value)
+    .replace(/[\u064B-\u0652\u0640]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/\s+/g, ' ');
+
+/**
+ * Objection window written in a ruling. Matches common Saudi phrasings
+ * (حق الاعتراض، خلال N يوماً، استئناف، التماس، من تاريخ تسلم الحكم)
+ * including Arabic-Indic digits and light OCR noise.
+ * A final ruling with no open window returns null.
+ */
+/** Drops a leading «المادة غير مذكورة» that the model used to invent. */
+export const stripStrayArticleNote = (text: string): string =>
+  text.replace(/^\s*المادة غير مذكورة\.?\s*/u, '').trim();
+
 export const detectObjectionDays = (text: string): number | null => {
-  const open = /يجوز\s+الاعتراض|مهلة\s+اعتراض|اعتراض\s+خلال/u.test(text);
+  const folded = foldRulingText(text);
+  const closed = /غير قابل ل(لاعتراض|لاستئناف)/u.test(folded);
+  const open =
+    /حق الاعتراض|يجوز الاعتراض|مهله اعتراض|اعتراض خلال|استئناف خلال|التماس اعاده النظر|من تاريخ تسلم الحكم|خلال\s+\S+\s+يوم/u.test(
+      folded,
+    ) && !closed;
   const finalOnly =
-    /حكم\s+نهائي|حكم\s+قطعي|غير\s+قابل\s+للاعتراض/u.test(text) && !open;
+    (/حكم نهائي|حكم قطعي/u.test(folded) || closed) && !open;
   if (finalOnly || !open) {
     return null;
   }
-  const digits = text.match(/اعتراض[\s\S]{0,80}?(\d+)\s*يوم/u);
+
+  const digits = folded.match(/(\d{1,3})\s*يوم/u);
   if (digits) {
     const days = Number(digits[1]);
-    return days > 0 && days <= 365 ? days : null;
+    if (days > 0 && days <= 365) {
+      return days;
+    }
   }
-  for (const [word, days] of Object.entries(WORD_DAYS)) {
-    if (new RegExp(String.raw`اعتراض[\s\S]{0,80}?${word}\s*يوم`, 'u').test(text)) {
+  for (const [word, days] of WORD_DAYS) {
+    const foldedWord = foldRulingText(word);
+    if (new RegExp(String.raw`${foldedWord}\s*يوم`, 'u').test(folded)) {
       return days;
     }
   }
