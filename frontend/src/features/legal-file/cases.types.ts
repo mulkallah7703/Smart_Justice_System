@@ -1,7 +1,12 @@
 import type { LegalCase } from './legalFile.types';
 
 export type BackendCaseStatus = 'PENDING' | 'ACTIVE' | 'CLOSED' | 'APPEALING';
-export type BackendCaseType = 'RENTAL' | 'COMMERCIAL' | 'PERSONAL' | 'LABOR';
+export type BackendCaseType =
+  | 'RENTAL'
+  | 'COMMERCIAL'
+  | 'PERSONAL'
+  | 'LABOR'
+  | 'CRIMINAL';
 export type BackendDeadlineType =
   | 'APPEAL'
   | 'DOCUMENT_SUBMIT'

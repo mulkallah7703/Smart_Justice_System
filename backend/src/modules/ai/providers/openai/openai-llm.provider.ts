@@ -106,11 +106,16 @@ export class OpenAiLlmProvider implements LlmProvider {
           throw aiLlmError();
         }
 
+        const promptTokens = response.usage?.prompt_tokens ?? 0;
+        const completionTokens = response.usage?.completion_tokens ?? 0;
+        this.logger.log(
+          `OpenAI usage model=${response.model || this.model} promptTokens=${promptTokens} completionTokens=${completionTokens}`,
+        );
         return {
           text,
           model: response.model || this.model,
-          promptTokens: response.usage?.prompt_tokens ?? 0,
-          completionTokens: response.usage?.completion_tokens ?? 0,
+          promptTokens,
+          completionTokens,
         };
       } finally {
         clearTimeout(timer);

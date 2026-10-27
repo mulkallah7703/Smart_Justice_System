@@ -29,8 +29,20 @@ const LIVE_DOMAINS = new Set<ApiDomain>([
   'judicial-card',
 ]);
 
+const readEnv = (value: string | undefined): string => (value ?? '').trim();
+
+/** Canonical name is `VITE_API_BASE_URL`. `VITE_API_URL` is the Vercel alias. */
 export const getApiBaseUrl = (): string =>
-  (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/$/, '');
+  (readEnv(import.meta.env.VITE_API_BASE_URL) || readEnv(import.meta.env.VITE_API_URL)).replace(
+    /\/$/,
+    '',
+  );
+
+/** `https://host/api/v1` becomes `wss://host/api/v1/alerts/ws`. */
+export const apiBaseToWebSocketUrl = (base: string): string => {
+  const trimmed = base.trim().replace(/\/$/, '');
+  return `${trimmed.replace(/^http/i, 'ws')}/alerts/ws`;
+};
 
 /**
  * Explicit API mode.
@@ -86,7 +98,7 @@ export const assertProductionApiConfig = (): void => {
   getApiMode();
   if (!getApiBaseUrl()) {
     throw new Error(
-      'VITE_API_BASE_URL is required in production. Frontend must call the NestJS API — no mock fallback.',
+      'VITE_API_BASE_URL or VITE_API_URL is required in production. Frontend must call the NestJS API — no mock fallback.',
     );
   }
 };

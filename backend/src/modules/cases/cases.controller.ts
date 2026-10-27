@@ -1,4 +1,14 @@
-﻿import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+﻿import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 
 import { wrapSuccess } from '../../shared/http/envelope';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
@@ -6,12 +16,24 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/auth.types';
 import { CasesService } from './cases.service';
 import { CaseListQueryDto } from './dto/case-list-query.dto';
+import { CreateCaseDto } from './dto/create-case.dto';
 import type { CaseDetailDto } from './dto/case-response.dto';
+import { CaseCreateRateLimitGuard } from './guards/case-create-rate-limit.guard';
 
 @Controller('cases')
 @UseGuards(JwtAuthGuard)
 export class CasesController {
   constructor(private readonly casesService: CasesService) {}
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(CaseCreateRateLimitGuard)
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: CreateCaseDto,
+  ): Promise<CaseDetailDto> {
+    return this.casesService.create(user.sub, body);
+  }
 
   @Get()
   async list(

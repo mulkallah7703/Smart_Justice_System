@@ -90,6 +90,7 @@ export class EmbeddingIngestService {
         documentPageId: true,
         chunkIndex: true,
         text: true,
+        section: true,
         pipelineVersion: true,
         documentPage: {
           select: {
@@ -162,6 +163,7 @@ export class EmbeddingIngestService {
           embeddingModel: result.model,
           extractionMethod: chunk.documentPage.extractionMethod,
           trust: 'TRUSTED',
+          section: chunk.section,
         },
       }));
 

@@ -16,6 +16,8 @@ export interface VectorPointPayload {
   embeddingModel: string;
   extractionMethod: 'TEXT_LAYER' | 'OCR';
   trust: 'TRUSTED';
+  /** Ruling section when the chunker labelled one. */
+  section?: string | null;
 }
 
 export interface VectorUpsertPoint {
@@ -31,6 +33,8 @@ export interface VectorSearchFilters {
   trust: 'TRUSTED';
   pipelineVersion: number;
   embeddingModel: string;
+  /** When set, only these documents are eligible. Empty means no hits. */
+  documentIds?: readonly string[];
 }
 
 export interface VectorSearchInput {

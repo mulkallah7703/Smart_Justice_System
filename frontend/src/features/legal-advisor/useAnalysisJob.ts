@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { ar } from '../../core/i18n/ar';
 
 import { pollAdvisorJob, resetAdvisorJobMock } from './advisorApi';
 import {
-  ADVISOR_MAX_POLL_ATTEMPTS,
-  ADVISOR_POLL_INTERVAL_MS,
+  ADVISOR_POLL_BUDGET_MS,
+  advisorPollDelayMs,
   clampAdvisorStageIndex,
   decideAdvisorPoll,
 } from './advisorPoll';
@@ -42,7 +42,6 @@ export const useAnalysisJob = (jobId: string): UseAnalysisJobResult => {
   const navigate = useNavigate();
   const [stageIndex, setStageIndex] = useState(0);
   const [progress, setProgress] = useState(0);
-  const inFlightRef = useRef(false);
 
   useEffect(() => {
     if (!jobId) {
@@ -54,6 +53,8 @@ export const useAnalysisJob = (jobId: string): UseAnalysisJobResult => {
     let cancelled = false;
     let attempt = 0;
     let timeoutId = 0;
+    let inFlight = false;
+    const startedAt = Date.now();
 
     const failToUpload = (reason?: string): void => {
       navigate('/advisor', {
@@ -65,15 +66,15 @@ export const useAnalysisJob = (jobId: string): UseAnalysisJobResult => {
     const scheduleNext = (): void => {
       timeoutId = window.setTimeout(() => {
         void tick();
-      }, ADVISOR_POLL_INTERVAL_MS);
+      }, advisorPollDelayMs(attempt));
     };
 
     const tick = async (): Promise<void> => {
-      if (cancelled || inFlightRef.current) {
+      if (cancelled || inFlight) {
         return;
       }
 
-      inFlightRef.current = true;
+      inFlight = true;
       attempt += 1;
 
       try {
@@ -90,7 +91,8 @@ export const useAnalysisJob = (jobId: string): UseAnalysisJobResult => {
         const decision = decideAdvisorPoll({
           status: result.status,
           attempt,
-          maxAttempts: ADVISOR_MAX_POLL_ATTEMPTS,
+          elapsedMs: Date.now() - startedAt,
+          budgetMs: ADVISOR_POLL_BUDGET_MS,
         });
 
         if (decision.terminal === 'DONE') {
@@ -117,7 +119,7 @@ export const useAnalysisJob = (jobId: string): UseAnalysisJobResult => {
           failToUpload();
         }
       } finally {
-        inFlightRef.current = false;
+        inFlight = false;
       }
     };
 

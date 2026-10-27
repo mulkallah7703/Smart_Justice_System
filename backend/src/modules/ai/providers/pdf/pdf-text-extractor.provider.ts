@@ -8,6 +8,12 @@ import {
   OCR_PROVIDER,
   type OcrProvider,
 } from '../ocr-provider.interface';
+import {
+  cropHeaderPng,
+  DIGITS_UNVERIFIED,
+  prepareOcrPng,
+  reconcileHeaderDigits,
+} from '../ocr/ocr-image';
 import type {
   DocumentSource,
   ExtractedDocument,
@@ -16,6 +22,11 @@ import type {
   TextExtractor,
 } from '../text-extractor.interface';
 
+import {
+  ARABIC_LAYER_OCR_PREFERRED,
+  assessArabicTextLayer,
+  scoreExtractedText,
+} from './arabic-layer-quality';
 import { PDF_TEXT_VISUAL_ORDER } from './arabic-text-order';
 import { hasUsableText } from './page-text';
 import {
@@ -29,10 +40,10 @@ export { PDF_TEXT_VISUAL_ORDER };
 const RASTER_TYPES: readonly string[] = ['image/png', 'image/jpeg'];
 
 /**
- * Real text-layer extraction with local OCR fallback for pages that have no
- * usable text layer. TEXT_LAYER pages are never re-recognised. Arabic
- * TEXT_LAYER output remains order-unresolved (Option B) and is assigned
- * `REVIEW_REQUIRED`. OCR pages are also `REVIEW_REQUIRED` in C.3.5.
+ * Real text-layer extraction. Pages with no usable text are OCR'd. Arabic
+ * text layers that are readable stay as text. Layers that are presentation
+ * forms broken apart, duplicated, or watermark-polluted are OCR'd as well,
+ * and the higher quality score is kept. Arabic text is not reordered.
  */
 @Injectable()
 export class PdfTextExtractor implements TextExtractor {
@@ -55,26 +66,54 @@ export class PdfTextExtractor implements TextExtractor {
 
     const ai = this.configService.get('ai', { infer: true });
     const layerPages = await readPdfPages(source.bytes, ai.pdfMaxPages);
-    const pages: ExtractedPage[] = [];
+    const pages: ExtractedPage[] = new Array(layerPages.length);
     let ocrEngine: string | null = null;
+    let cursor = 0;
+    let settled = 0;
+    const concurrency = Math.max(1, Math.min(4, ai.ocrConcurrency || 2));
 
-    // Sequential: OCR is CPU-heavy and unbounded Promise.all would contend
-    // for memory with large rendered pages.
-    for (const layer of layerPages) {
-      if (hasUsableText(layer.text)) {
-        pages.push(this.textLayerPage(source.documentId, layer));
-        continue;
+    const runSlot = async (): Promise<void> => {
+      for (;;) {
+        const index = cursor;
+        cursor += 1;
+        if (index >= layerPages.length) {
+          return;
+        }
+        const layer = layerPages[index]!;
+        const textLayer = hasUsableText(layer.text)
+          ? this.textLayerPage(source.documentId, layer)
+          : null;
+        const corrupted =
+          textLayer !== null && assessArabicTextLayer(textLayer.text).corrupted;
+
+        if (textLayer && !corrupted) {
+          pages[index] = textLayer;
+        } else {
+          try {
+            const recognised = await this.recognisePdfPage(
+              source,
+              layer.pageNumber,
+              ai.ocrDpi,
+              ai.ocrMaxPixels,
+            );
+            ocrEngine = recognised.engine;
+            pages[index] = textLayer
+              ? this.preferExtraction(textLayer, recognised.page)
+              : recognised.page;
+          } catch (error) {
+            if (!textLayer) {
+              throw error;
+            }
+            pages[index] = textLayer;
+          }
+        }
+        settled += 1;
+        await source.onPageSettled?.(settled, layerPages.length);
       }
+    };
 
-      const recognised = await this.recognisePdfPage(
-        source,
-        layer.pageNumber,
-        ai.ocrDpi,
-        ai.ocrMaxPixels,
-      );
-      ocrEngine = recognised.engine;
-      pages.push(recognised.page);
-    }
+    const slots = Math.min(concurrency, Math.max(1, layerPages.length));
+    await Promise.all(Array.from({ length: slots }, () => runSlot()));
 
     return {
       documentId: source.documentId,
@@ -108,6 +147,22 @@ export class PdfTextExtractor implements TextExtractor {
     };
   }
 
+  /** Keeps whichever reading scores higher. OCR wins only when it is actually better. */
+  private preferExtraction(
+    textLayer: ExtractedTextPage,
+    ocrPage: ExtractedTextPage,
+  ): ExtractedTextPage {
+    const layerScore = scoreExtractedText(textLayer);
+    const ocrScore = scoreExtractedText(ocrPage);
+    if (ocrScore > layerScore && ocrPage.text.trim().length > 0) {
+      return {
+        ...ocrPage,
+        warnings: [...ocrPage.warnings, ARABIC_LAYER_OCR_PREFERRED],
+      };
+    }
+    return textLayer;
+  }
+
   private async recognisePdfPage(
     source: DocumentSource,
     pageNumber: number,
@@ -121,15 +176,35 @@ export class PdfTextExtractor implements TextExtractor {
       maxPixels,
     });
 
+    const prepared = await prepareOcrPng(rendered.image);
     const recognised = await this.ocr.recognise({
-      image: rendered.image,
+      image: prepared,
       mimeType: rendered.mimeType,
       languageHints: source.languageHints,
       pageNumber,
     });
+    let headerText = '';
+    if (recognised.text.trim().length > 0) {
+      try {
+        const header = await this.ocr.recognise({
+          image: await cropHeaderPng(prepared),
+          mimeType: rendered.mimeType,
+          languageHints: source.languageHints,
+          pageNumber,
+          pass: 'header-digits',
+        });
+        headerText = header.text;
+      } catch {
+        headerText = '';
+      }
+    }
 
+    const merged = reconcileHeaderDigits(recognised.text, headerText);
     const warnings = [...recognised.warnings];
-    const text = recognised.text;
+    if (merged.digitsUnverified) {
+      warnings.push(DIGITS_UNVERIFIED);
+    }
+    const text = merged.text;
     return {
       engine: recognised.engine,
       page: {

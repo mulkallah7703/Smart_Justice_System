@@ -7,6 +7,7 @@ import type {
   AlertListResult,
   AlertResponseDto,
 } from './dto/alert-response.dto';
+import { AlertsGateway } from './alerts.gateway';
 import { alertFailed, alertNotFound } from './alerts.errors';
 import { mapAlert } from './mappers/alert.mapper';
 
@@ -22,6 +23,7 @@ const ALERT_SELECT = {
   isRead: true,
   triggeredAt: true,
   createdAt: true,
+  caseId: true,
   deadline: { select: { dueAt: true } },
 } satisfies Prisma.AlertSelect;
 
@@ -39,7 +41,10 @@ export interface CreateAlertInput {
 export class AlertsService {
   private readonly logger = new Logger(AlertsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gateway: AlertsGateway = new AlertsGateway(),
+  ) {}
 
   async list(userId: string, query: AlertListQueryDto): Promise<AlertListResult> {
     const page = query.page ?? DEFAULT_PAGE;
@@ -127,6 +132,21 @@ export class AlertsService {
       }
     }
 
+    if (input.type === 'DEADLINE' && input.caseId) {
+      const duplicate = await this.prisma.alert.findFirst({
+        where: {
+          userId: input.userId,
+          caseId: input.caseId,
+          type: 'DEADLINE',
+          body: input.body,
+        },
+        select: ALERT_SELECT,
+      });
+      if (duplicate) {
+        return mapAlert(duplicate);
+      }
+    }
+
     try {
       const created = await this.prisma.alert.create({
         data: {
@@ -146,7 +166,9 @@ export class AlertsService {
         status: 'ok',
         type: input.type,
       });
-      return mapAlert(created);
+      const mapped = mapAlert(created);
+      this.gateway.notify(input.userId, mapped.id, mapped.caseId);
+      return mapped;
     } catch {
       throw alertFailed();
     }

@@ -193,6 +193,64 @@ describe('booking rate limit guard', () => {
     ).rejects.toMatchObject({ code: 'CONSULTATION_RATE_LIMITED' });
   });
 
+  it('cancels a pending consultation owned by the caller', async () => {
+    const cancelled = { ...consultationRecord(), status: 'CANCELLED' as const };
+    const findFirst = jest
+      .fn()
+      .mockResolvedValueOnce({ id: 'consult-1', status: 'PENDING' })
+      .mockResolvedValueOnce(cancelled);
+    const update = jest.fn().mockResolvedValue({ id: 'consult-1' });
+    const service = new ConsultationsService(
+      { consultation: { findFirst, update } } as unknown as PrismaService,
+      {} as AvailabilityService,
+    );
+
+    const result = await service.cancel('user-1', 'consult-1');
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'consult-1' },
+      data: { status: 'CANCELLED' },
+    });
+    expect(result.status).toBe('CANCELLED');
+  });
+
+  it('returns 409 when the consultation is already cancelled', async () => {
+    const findFirst = jest
+      .fn()
+      .mockResolvedValue({ id: 'consult-1', status: 'CANCELLED' });
+    const update = jest.fn();
+    const service = new ConsultationsService(
+      { consultation: { findFirst, update } } as unknown as PrismaService,
+      {} as AvailabilityService,
+    );
+
+    await expect(service.cancel('user-1', 'consult-1')).rejects.toMatchObject({
+      code: 'CONSULTATION_ALREADY_CANCELLED',
+    });
+    try {
+      await service.cancel('user-1', 'consult-1');
+    } catch (error) {
+      expect((error as { getStatus: () => number }).getStatus()).toBe(409);
+    }
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('refuses to cancel a completed consultation', async () => {
+    const findFirst = jest
+      .fn()
+      .mockResolvedValue({ id: 'consult-1', status: 'COMPLETED' });
+    const update = jest.fn();
+    const service = new ConsultationsService(
+      { consultation: { findFirst, update } } as unknown as PrismaService,
+      {} as AvailabilityService,
+    );
+
+    await expect(service.cancel('user-1', 'consult-1')).rejects.toMatchObject({
+      code: 'CONSULTATION_NOT_CANCELLABLE',
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('rejects an unauthenticated request', async () => {
     const guard = new ConsultationBookingRateLimitGuard(
       { incrementWithTtl: async () => 1 } as unknown as RedisService,

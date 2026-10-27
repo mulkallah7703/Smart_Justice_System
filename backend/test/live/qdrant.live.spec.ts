@@ -14,6 +14,8 @@ import { resolve } from 'node:path';
 import { config as loadDotenv } from 'dotenv';
 import { QdrantClient } from '@qdrant/js-client-rest';
 
+import { qdrantClientOptions } from '../../src/modules/ai/vector/qdrant-endpoint';
+
 loadDotenv({ path: resolve(__dirname, '../../.env') });
 
 const url =
@@ -44,15 +46,14 @@ const toPointId = (seed: string): string => {
 };
 
 describeQdrantLive('LIVE Qdrant', () => {
-  const client = new QdrantClient({
-    url: url.replace(/\/$/, ''),
-    apiKey:
-      process.env.LIVE_QDRANT_API_KEY?.trim() ||
-      process.env.AI_QDRANT_API_KEY?.trim() ||
-      process.env.QDRANT_API_KEY?.trim() ||
-      undefined,
-    checkCompatibility: false,
-  });
+  const client = new QdrantClient(
+    qdrantClientOptions(
+      url,
+      process.env.LIVE_QDRANT_API_KEY ||
+        process.env.AI_QDRANT_API_KEY ||
+        process.env.QDRANT_API_KEY,
+    ),
+  );
 
   afterAll(async () => {
     try {

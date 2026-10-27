@@ -25,6 +25,7 @@ export interface Alert {
   icon: string;
   isRead: boolean;
   triggeredAt: string;
+  caseId?: string | null;
   timeLeft?: string;
   countdownLabel?: string;
   action?: AlertAction;

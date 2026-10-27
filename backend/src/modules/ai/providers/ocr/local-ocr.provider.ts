@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createWorker, type Worker } from 'tesseract.js';
+import { createWorker, PSM, type Worker } from 'tesseract.js';
 
 import type { AppConfig } from '../../../../config/env.validation';
 import {
@@ -29,6 +29,8 @@ export class LocalOcrProvider implements OcrProvider, OnModuleDestroy {
 
   private worker: Worker | null = null;
   private initPromise: Promise<Worker> | null = null;
+  /** One recognise at a time: the header whitelist must not interleave. */
+  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly configService: ConfigService<AppConfig, true>) {}
 
@@ -41,6 +43,19 @@ export class LocalOcrProvider implements OcrProvider, OnModuleDestroy {
   }
 
   async recognise(input: OcrPageInput): Promise<OcrPageResult> {
+    return this.enqueue(() => this.recogniseQueued(input));
+  }
+
+  private enqueue<T>(task: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(task, task);
+    this.queue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  private async recogniseQueued(input: OcrPageInput): Promise<OcrPageResult> {
     if (!Buffer.isBuffer(input.image) || input.image.byteLength === 0) {
       throw ocrFailed();
     }
@@ -49,6 +64,18 @@ export class LocalOcrProvider implements OcrProvider, OnModuleDestroy {
     const worker = await this.getWorker();
 
     try {
+      if (input.pass === 'header-digits') {
+        await worker.setParameters({
+          tessedit_char_whitelist:
+            '0123456789٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹/-. ',
+          tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+        });
+      } else {
+        await worker.setParameters({
+          tessedit_char_whitelist: '',
+          tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+        });
+      }
       const recognised = await withTimeout(
         worker.recognize(input.image),
         ocrTimeoutMs,
@@ -77,6 +104,10 @@ export class LocalOcrProvider implements OcrProvider, OnModuleDestroy {
         throw error;
       }
       throw ocrFailed();
+    } finally {
+      if (input.pass === 'header-digits') {
+        await worker.setParameters({ tessedit_char_whitelist: '' }).catch(() => undefined);
+      }
     }
   }
 

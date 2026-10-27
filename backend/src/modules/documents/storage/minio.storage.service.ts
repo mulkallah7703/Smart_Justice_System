@@ -115,7 +115,7 @@ export class MinioStorageService
     return new S3Client({
       region: s3.region,
       endpoint: s3.endpoint,
-      forcePathStyle: true,
+      forcePathStyle: s3.forcePathStyle,
       credentials: {
         accessKeyId: s3.accessKey,
         secretAccessKey: s3.secret,

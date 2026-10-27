@@ -20,6 +20,7 @@ const LawyersFilter = ({
       { id: 'PERSONAL', label: ar.lawyers.filters.personal },
       { id: 'COMMERCIAL', label: ar.lawyers.filters.commercial },
       { id: 'LABOR', label: ar.lawyers.filters.labor },
+      { id: 'CRIMINAL', label: ar.lawyers.filters.criminal },
     ],
     [],
   );

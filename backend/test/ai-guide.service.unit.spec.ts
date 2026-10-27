@@ -388,7 +388,7 @@ describe('AiGuideService', () => {
     expect(rows).toHaveLength(1);
   });
 
-  it('K. malformed output twice → AI_GUIDE_FAILED after one constrained retry', async () => {
+  it('K. malformed output twice returns an Arabic fallback instead of 502', async () => {
     const started = await service.start('user_1', {});
     llm.generateAnswer.mockResolvedValue({
       text: 'not-json{{{',
@@ -396,12 +396,17 @@ describe('AiGuideService', () => {
       promptTokens: 0,
       completionTokens: 0,
     });
-    await expect(
-      service.answer('user_1', { sessionId: started.sessionId, answer: 'أريد أرفع قضية.' }),
-    ).rejects.toMatchObject({ code: 'AI_GUIDE_FAILED' });
+    const answer = await service.answer('user_1', {
+      sessionId: started.sessionId,
+      answer: 'أريد أرفع قضية.',
+    });
     expect(llm.generateAnswer).toHaveBeenCalledTimes(2);
     expect(promptAt(1)).toContain('IMPORTANT RETRY');
-    expect(rows).toHaveLength(1);
+    expect(answer.reply).toMatch(/[\u0600-\u06FF]/);
+    expect(answer.turn.needsClarification).toBe(false);
+    expect(rows.some((row) => row.role === 'ASSISTANT' && row.content === answer.reply)).toBe(
+      true,
+    );
   });
 
   it('L. an unverified article citation is retried, never shown', async () => {

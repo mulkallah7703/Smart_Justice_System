@@ -20,7 +20,8 @@ const tabs = [
 ];
 
 const LegalFileScreen = (): JSX.Element => {
-  const { activeTab, setActiveTab, cases, isLoading } = useLegalFile();
+  const { activeTab, setActiveTab, cases, isLoading, reloadCases } =
+    useLegalFile();
 
   return (
     <ScreenShell variant="default">
@@ -40,7 +41,11 @@ const LegalFileScreen = (): JSX.Element => {
 
         <div className={styles.content}>
           {activeTab === 'cases' ? (
-            <CasesTab cases={cases} isLoading={isLoading} />
+            <CasesTab
+              cases={cases}
+              isLoading={isLoading}
+              onCreated={reloadCases}
+            />
           ) : null}
           {activeTab === 'appointments' ? <AppointmentsTab /> : null}
           {activeTab === 'documents' ? <DocumentsTab /> : null}

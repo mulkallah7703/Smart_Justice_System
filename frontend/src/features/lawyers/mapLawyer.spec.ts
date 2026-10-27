@@ -77,6 +77,7 @@ describe('mapBackendLawyer', () => {
 
     expect(lawyer.specialties).toEqual(['RENTAL']);
     expect(specialtyLabels(['TRAFFIC'])).toEqual([]);
+    expect(specialtyLabels(['CRIMINAL'])).toEqual([ar.lawyers.filters.criminal]);
   });
 
   it('derives a stable avatar tone', () => {

@@ -9,7 +9,11 @@ import {
   isValidDiscountPct,
   majorToMinor,
 } from './money';
-import { paymentConsultationNotFound, paymentPricingUnavailable } from './payments.errors';
+import {
+  paymentConsultationNotFound,
+  paymentConsultationNotPayable,
+  paymentPricingUnavailable,
+} from './payments.errors';
 
 export interface ConsultationQuote {
   consultationId: string;
@@ -47,6 +51,7 @@ export class PricingService {
       select: {
         id: true,
         type: true,
+        status: true,
         scheduledAt: true,
         lawyer: {
           select: { priceFrom: true, user: { select: { name: true } } },
@@ -56,6 +61,12 @@ export class PricingService {
 
     if (!consultation) {
       throw paymentConsultationNotFound();
+    }
+
+    // A booking is payable only while it is still pending. Cancelled,
+    // confirmed, and completed consultations must not open a new charge.
+    if (consultation.status !== 'PENDING') {
+      throw paymentConsultationNotPayable();
     }
 
     const originalMinor = majorToMinor(consultation.lawyer.priceFrom);

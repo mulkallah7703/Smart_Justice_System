@@ -21,7 +21,6 @@ const ConsultationType = (): JSX.Element => {
     selectedType,
     selectedDateId,
     selectedTimeId,
-    selectedTypeOption,
     setSelectedType,
     setSelectedDateId,
     setSelectedTimeId,
@@ -35,7 +34,7 @@ const ConsultationType = (): JSX.Element => {
   const handleContinue = async (): Promise<void> => {
     const consultationId = await submitBooking(id);
     if (consultationId) {
-      navigate(`/payment/${consultationId}`);
+      navigate(`/booking/confirmed/${consultationId}`);
     }
   };
 
@@ -69,10 +68,7 @@ const ConsultationType = (): JSX.Element => {
               {errorMessage}
             </p>
           ) : null}
-          <BookingSummary
-            discountedPrice={selectedTypeOption.priceDiscounted}
-            originalPrice={selectedTypeOption.priceOriginal}
-          />
+          <BookingSummary />
           <Button
             variant="primary"
             size="lg"

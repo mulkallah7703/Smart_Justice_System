@@ -9,8 +9,9 @@ import type { ConnectionOptions } from 'bullmq';
  * either the queue or the existing rate limiting.
  */
 export const redisConnectionFromUrl = (raw: string): ConnectionOptions => {
-  const url = new URL(raw);
+  const url = new URL(raw.trim());
   const database = url.pathname.replace(/^\//, '');
+  const tls = url.protocol === 'rediss:';
 
   return {
     host: url.hostname,
@@ -18,7 +19,9 @@ export const redisConnectionFromUrl = (raw: string): ConnectionOptions => {
     username: url.username ? decodeURIComponent(url.username) : undefined,
     password: url.password ? decodeURIComponent(url.password) : undefined,
     db: database ? Number(database) : undefined,
-    tls: url.protocol === 'rediss:' ? {} : undefined,
+    tls: tls ? {} : undefined,
+    // Upstash closes connections that wait on INFO during ready check.
+    enableReadyCheck: tls ? false : undefined,
     maxRetriesPerRequest: null,
   };
 };

@@ -2,7 +2,8 @@ export type LawyerSpecialty =
   | 'RENTAL'
   | 'PERSONAL'
   | 'COMMERCIAL'
-  | 'LABOR';
+  | 'LABOR'
+  | 'CRIMINAL';
 
 export type AvailabilityTone = 'available' | 'soon';
 

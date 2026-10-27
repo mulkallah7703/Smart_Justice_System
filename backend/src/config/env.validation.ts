@@ -8,6 +8,8 @@ export interface S3Config {
   secret: string;
   bucket: string;
   region: string;
+  /** R2 and MinIO are path-style. The client always sends path-style requests. */
+  forcePathStyle: true;
 }
 
 export interface JwtConfig {
@@ -156,6 +158,12 @@ export interface AiConfig {
   ocrLangPath: string;
   /** Tesseract language codes joined with `+`, e.g. `ara+eng`. */
   ocrLanguages: string;
+  /** Default `fast`. `best` selects tessdata_best for Arabic. */
+  ocrTessdata: 'best' | 'fast';
+  /** Pages rendered at once. OCR itself stays serialized. Capped at 4. */
+  ocrConcurrency: number;
+  /** Document advisor is experimental at launch. Default true. */
+  advisorExperimental: boolean;
   /**
    * Maximum UTF-16 length of a DocumentChunk. Soft-breaks prefer paragraphs
    * and newlines; hard splits never cut surrogate pairs. Default 2000.
@@ -244,7 +252,14 @@ export interface AppConfig {
    */
   trustProxyHops: number;
   databaseUrl: string;
+  /** Direct Postgres URL for Prisma Migrate. Falls back to `databaseUrl` when unset. */
+  directDatabaseUrl: string;
   redisUrl: string;
+  /**
+   * When true, the API process also starts the BullMQ consumer.
+   * Leave false when a separate `node dist/worker.js` process is running.
+   */
+  runWorkerInProcess: boolean;
   s3: S3Config | null;
   jwt: JwtConfig;
   nafath: NafathConfig;
@@ -315,20 +330,47 @@ const parseCorsOrigins = (raw: string): string[] => {
     throw new Error('CORS_ORIGINS must contain at least one origin');
   }
 
-  if (origins.includes('*')) {
+  if (origins.some((origin) => origin === '*')) {
     throw new Error('CORS_ORIGINS must not include "*"');
   }
 
   return origins;
 };
 
-const parseDatabaseUrl = (raw: string): string => {
+/**
+ * Exact origins, or a host wildcard such as `https://*.vercel.app`.
+ * A bare `*` is rejected by `parseCorsOrigins`.
+ */
+export const originAllowed = (
+  origin: string,
+  allowed: readonly string[],
+): boolean =>
+  allowed.some((entry) => {
+    if (!entry.includes('*')) {
+      return entry === origin;
+    }
+    const pattern = `^${entry
+      .replace(/[.+?^${}()|[\]\\*]/g, '\\$&')
+      .replace(/\\\*/g, '[^/]*')}$`;
+    return new RegExp(pattern).test(origin);
+  });
+
+const parseDatabaseUrl = (raw: string, key = 'DATABASE_URL'): string => {
   if (!raw.startsWith('postgresql://') && !raw.startsWith('postgres://')) {
     throw new Error(
-      'DATABASE_URL must be a PostgreSQL connection string (postgresql:// or postgres://)',
+      `${key} must be a PostgreSQL connection string (postgresql:// or postgres://)`,
     );
   }
   return raw;
+};
+
+/** `redis://` for local Redis, `rediss://` for Upstash TLS. Whitespace is ignored. */
+const parseRedisUrl = (raw: string): string => {
+  const value = raw.trim();
+  if (!value.startsWith('redis://') && !value.startsWith('rediss://')) {
+    throw new Error('REDIS_URL must start with redis:// or rediss://');
+  }
+  return value;
 };
 
 const parseS3 = (
@@ -365,7 +407,34 @@ const parseS3 = (
     secret: secret as string,
     bucket: bucket as string,
     region: env.S3_REGION?.trim() || 'us-east-1',
+    forcePathStyle: true,
   };
+};
+
+const parseOptionalBool = (
+  raw: string | undefined,
+  fallback: boolean,
+  key: string,
+): boolean => {
+  const value = raw?.trim().toLowerCase();
+  if (!value) {
+    return fallback;
+  }
+  if (value === 'true' || value === '1') {
+    return true;
+  }
+  if (value === 'false' || value === '0') {
+    return false;
+  }
+  throw new Error(`${key} must be true or false`);
+};
+
+const parseTessdataVariant = (raw: string | undefined): 'best' | 'fast' => {
+  const value = raw?.trim().toLowerCase() || 'fast';
+  if (value !== 'best' && value !== 'fast') {
+    throw new Error('AI_OCR_TESSDATA must be best or fast');
+  }
+  return value;
 };
 
 const parsePositiveInt = (
@@ -781,7 +850,7 @@ export const parseAi = (env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): AiConfig => {
     textExtractorMode,
     ocrMode,
     pdfMaxPages: parsePositiveInt(env.AI_PDF_MAX_PAGES, 100, 'AI_PDF_MAX_PAGES'),
-    ocrDpi: parsePositiveInt(env.AI_OCR_DPI, 200, 'AI_OCR_DPI'),
+    ocrDpi: parsePositiveInt(env.AI_OCR_DPI, 300, 'AI_OCR_DPI'),
     ocrMaxPixels: parsePositiveInt(
       env.AI_OCR_MAX_PIXELS,
       16_777_216,
@@ -794,6 +863,11 @@ export const parseAi = (env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): AiConfig => {
     ),
     ocrLangPath: env.AI_OCR_LANG_PATH?.trim() || '.ocr-data',
     ocrLanguages: env.AI_OCR_LANGUAGES?.trim() || 'ara+eng',
+    ocrTessdata: parseTessdataVariant(env.AI_OCR_TESSDATA),
+    ocrConcurrency: Math.min(
+      4,
+      parsePositiveInt(env.AI_OCR_CONCURRENCY, 2, 'AI_OCR_CONCURRENCY'),
+    ),
     chunkMaxChars: parsePositiveInt(
       env.AI_CHUNK_MAX_CHARS,
       2000,
@@ -867,6 +941,11 @@ export const parseAi = (env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): AiConfig => {
       env.AI_WORKER_CONCURRENCY,
       2,
       'AI_WORKER_CONCURRENCY',
+    ),
+    advisorExperimental: parseOptionalBool(
+      env.AI_ADVISOR_EXPERIMENTAL,
+      true,
+      'AI_ADVISOR_EXPERIMENTAL',
     ),
   };
 
@@ -986,7 +1065,16 @@ export const validateEnv = (
       'TRUST_PROXY_HOPS',
     ),
     databaseUrl: parseDatabaseUrl(requireString(env, 'DATABASE_URL')),
-    redisUrl: requireString(env, 'REDIS_URL'),
+    directDatabaseUrl: parseDatabaseUrl(
+      env.DIRECT_URL?.trim() || requireString(env, 'DATABASE_URL'),
+      'DIRECT_URL',
+    ),
+    redisUrl: parseRedisUrl(requireString(env, 'REDIS_URL')),
+    runWorkerInProcess: parseOptionalBool(
+      env.RUN_WORKER_IN_PROCESS,
+      false,
+      'RUN_WORKER_IN_PROCESS',
+    ),
     s3: parseS3(env, nodeEnvRaw),
     jwt: parseJwt(env),
     nafath: parseNafath(env, nodeEnvRaw),

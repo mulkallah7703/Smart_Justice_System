@@ -48,8 +48,9 @@ const withTrust = (
  * - an image yields a single OCR page, since a raster image can never carry a
  *   text layer.
  *
- * Trust follows the same C.3.5 policy as the real extractor. Every page is
- * marked so no caller can mistake this for real extraction.
+ * Trust follows the same quality gate as the real extractor. Mock OCR reports
+ * no confidence, so those pages stay `REVIEW_REQUIRED`. Every page is marked
+ * so no caller can mistake this for real extraction.
  */
 @Injectable()
 export class MockTextExtractor implements TextExtractor {

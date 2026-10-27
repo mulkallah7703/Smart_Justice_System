@@ -8,6 +8,8 @@
  * Split points never fall inside a surrogate pair.
  */
 
+export type RulingSection = 'HEADER' | 'FACTS' | 'REASONS' | 'RULING' | 'BODY';
+
 export interface TextChunkSpan {
   /** Zero-based order within a single page. */
   chunkIndex: number;
@@ -15,6 +17,8 @@ export interface TextChunkSpan {
   text: string;
   startOffset: number;
   endOffset: number;
+  /** Saudi ruling section when a heading was found. */
+  section?: RulingSection;
 }
 
 /** Default max UTF-16 length per chunk. Conservative for legal paragraphs. */
@@ -196,5 +200,79 @@ export const chunkPageText = (
     start = nextStart;
   }
 
+  return spans;
+};
+
+const SECTION_HEADING =
+  /(?:^|\n)[ \t]*((?:منطوق الحكم|نص الحكم|أسباب الحكم|الاسباب|الأسباب|الوقائع))[ \t]*(?:[:：]|\n)/gu;
+
+const sectionForHeading = (heading: string): RulingSection => {
+  if (heading.includes('منطوق') || heading.includes('نص الحكم')) {
+    return 'RULING';
+  }
+  if (heading.includes('سباب')) {
+    return 'REASONS';
+  }
+  if (heading.includes('وقائع')) {
+    return 'FACTS';
+  }
+  return 'BODY';
+};
+
+/**
+ * Splits a Saudi ruling on section headings so a chunk does not mix
+ * the facts, the reasons, and the ruling (منطوق الحكم). Pages without
+ * those headings stay one body and match the plain chunker.
+ */
+export const chunkRulingPage = (
+  pageText: string,
+  maxCharsOrOptions: number | ChunkPageTextOptions = DEFAULT_AI_CHUNK_MAX_CHARS,
+  overlapArg?: number,
+): readonly TextChunkSpan[] => {
+  const parts: Array<{ section: RulingSection; start: number; end: number }> = [];
+  const marks: Array<{ index: number; section: RulingSection }> = [];
+  for (const match of pageText.matchAll(SECTION_HEADING)) {
+    const heading = match[1] ?? '';
+    marks.push({
+      index: match.index ?? 0,
+      section: sectionForHeading(heading),
+    });
+  }
+
+  if (marks.length === 0) {
+    return chunkPageText(pageText, maxCharsOrOptions, overlapArg).map((span) => ({
+      ...span,
+      section: 'BODY' as const,
+    }));
+  }
+
+  if (marks[0]!.index > 0) {
+    parts.push({ section: 'HEADER', start: 0, end: marks[0]!.index });
+  }
+  for (let i = 0; i < marks.length; i += 1) {
+    const start = marks[i]!.index;
+    const end = i + 1 < marks.length ? marks[i + 1]!.index : pageText.length;
+    parts.push({ section: marks[i]!.section, start, end });
+  }
+
+  const spans: TextChunkSpan[] = [];
+  let chunkIndex = 0;
+  for (const part of parts) {
+    const local = chunkPageText(
+      pageText.slice(part.start, part.end),
+      maxCharsOrOptions,
+      overlapArg,
+    );
+    for (const span of local) {
+      spans.push({
+        chunkIndex,
+        text: span.text,
+        startOffset: part.start + span.startOffset,
+        endOffset: part.start + span.endOffset,
+        section: part.section,
+      });
+      chunkIndex += 1;
+    }
+  }
   return spans;
 };

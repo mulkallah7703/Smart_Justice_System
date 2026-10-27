@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 
 import { ar } from '../../core/i18n/ar';
-import { isDomainLive, isMockApiMode, isRealApiMode } from '../../shared/api/mode';
+import { isDomainLive, isRealApiMode } from '../../shared/api/mode';
 import { fetchAlerts } from '../alerts/alertsApi';
 import { alertsStore } from '../alerts/alertsStore';
 import { authStore } from '../auth/authStore';
@@ -28,9 +28,21 @@ const tierLabel = (tier: FrontendUser['tier']): string => {
 };
 
 export const useHomeData = (): HomeData => {
+  const real = isRealApiMode();
   const [user, setUser] = useState<FrontendUser | null>(null);
-  const [liveCases, setLiveCases] = useState<HomeCase[] | null>(null);
-  const [homeAlert, setHomeAlert] = useState<HomeAlert | null>(null);
+  const [userReady, setUserReady] = useState(!real);
+  const [liveCases, setLiveCases] = useState<HomeCase[] | null>(real ? [] : null);
+  const [casesReady, setCasesReady] = useState(!real);
+  const [alert, setAlert] = useState<HomeAlert | null>(
+    real
+      ? null
+      : {
+          id: 'mock-home-alert',
+          title: ar.home.alert.title,
+          subtitle: ar.home.alert.subtitle,
+        },
+  );
+  const [alertsReady, setAlertsReady] = useState(!real);
 
   const staticData = useMemo(
     () => ({
@@ -64,7 +76,8 @@ export const useHomeData = (): HomeData => {
   );
 
   useEffect(() => {
-    if (!isRealApiMode() || !authStore.getState().accessToken) {
+    if (!real || !authStore.getState().accessToken) {
+      setUserReady(true);
       return;
     }
 
@@ -79,20 +92,27 @@ export const useHomeData = (): HomeData => {
         if (active) {
           setUser(null);
         }
+      })
+      .finally(() => {
+        if (active) {
+          setUserReady(true);
+        }
       });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [real]);
 
   useEffect(() => {
     if (!isDomainLive('legal-file')) {
+      setCasesReady(true);
       return;
     }
 
     if (!authStore.getState().accessToken) {
       setLiveCases([]);
+      setCasesReady(true);
       return;
     }
 
@@ -112,6 +132,11 @@ export const useHomeData = (): HomeData => {
         if (active) {
           setLiveCases([]);
         }
+      })
+      .finally(() => {
+        if (active) {
+          setCasesReady(true);
+        }
       });
 
     return () => {
@@ -120,10 +145,8 @@ export const useHomeData = (): HomeData => {
   }, []);
 
   useEffect(() => {
-    if (
-      !isMockApiMode() &&
-      (!isDomainLive('alerts') || !authStore.getState().accessToken)
-    ) {
+    if (!real || !isDomainLive('alerts') || !authStore.getState().accessToken) {
+      setAlertsReady(true);
       return;
     }
 
@@ -134,37 +157,46 @@ export const useHomeData = (): HomeData => {
         if (!active) {
           return;
         }
-        setHomeAlert(selectHomeAlert(data));
-        setUnreadCount(data.filter((alert) => !alert.isRead).length);
+        setAlert(selectHomeAlert(data));
+        setUnreadCount(data.filter((item) => !item.isRead).length);
       })
       .catch(() => {
-        // A failed request is not an empty result: show no banner rather than
-        // stale or invented content. AlertsCenter surfaces the error to the user.
         if (active) {
-          setHomeAlert(null);
+          setAlert(null);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setAlertsReady(true);
         }
       });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [real]);
 
-  return {
-    ...staticData,
-    alert: homeAlert,
-    user: user
-      ? { greeting: staticData.user.greeting, name: user.name }
-      : staticData.user,
-    card: user
+  const card: HomeJudicialCard | null = real
+    ? user
       ? {
-          cardNumber: user.cardNumber || staticData.card.cardNumber,
+          cardNumber: user.cardNumber || '—',
           tier: tierToHome(user.tier),
           tierLabel: tierLabel(user.tier),
           discountPct: user.discountPct,
         }
-      : staticData.card,
-    cases: liveCases ?? staticData.cases,
-    isLoading: false,
+      : null
+    : staticData.card;
+
+  return {
+    user: user
+      ? { greeting: staticData.user.greeting, name: user.name }
+      : real
+        ? { greeting: staticData.user.greeting, name: '' }
+        : staticData.user,
+    card,
+    alert,
+    services: staticData.services,
+    cases: real ? (liveCases ?? []) : staticData.cases,
+    isLoading: real && (!userReady || !casesReady || !alertsReady),
   };
 };

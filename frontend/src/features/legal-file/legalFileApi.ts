@@ -7,10 +7,17 @@ import { isMockApiMode } from '../../shared/api/mode';
 import type {
   BackendCase,
   BackendCaseDetail,
+  BackendCaseType,
   FrontendCase,
   FrontendCaseDetail,
 } from './cases.types';
-import { mapBackendCase, mapBackendCaseDetail } from './mapCase';
+import {
+  formatCaseNumberLabel,
+  formatCaseSubtitle,
+  mapBackendCase,
+  mapBackendCaseDetail,
+  mapCaseType,
+} from './mapCase';
 
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => {
@@ -77,6 +84,62 @@ const mockCaseDetails = (): Record<string, FrontendCaseDetail> => {
       deadlines: [],
     },
   };
+};
+
+export interface CreateLegalCaseInput {
+  type: BackendCaseType;
+  authority?: string;
+  notes?: string;
+  objectionDays?: number;
+}
+
+export const buildCreateCaseBody = (
+  input: CreateLegalCaseInput,
+): {
+  type: BackendCaseType;
+  authority?: string;
+  notes?: string;
+  objectionDays?: number;
+} => {
+  const authority = input.authority?.trim();
+  const notes = input.notes?.trim();
+  const days = input.objectionDays;
+  return {
+    type: input.type,
+    ...(authority && authority.length >= 2 ? { authority } : {}),
+    ...(notes ? { notes } : {}),
+    ...(typeof days === 'number' && days >= 1 && days <= 365
+      ? { objectionDays: days }
+      : {}),
+  };
+};
+
+export const createLegalCase = async (
+  input: CreateLegalCaseInput,
+): Promise<FrontendCaseDetail> => {
+  if (isMockApiMode()) {
+    await wait(200);
+    const id = `case-${Date.now()}`;
+    return {
+      id,
+      title: mapCaseType(input.type),
+      subtitle: formatCaseSubtitle(id, input.authority?.trim() || null),
+      caseNumber: formatCaseNumberLabel(id),
+      status: ar.legalFile.caseStatus.PENDING,
+      statusVariant: 'pending',
+      accent: 'warning',
+      footer: null,
+      notes: input.notes?.trim() || null,
+      hearings: [],
+      deadlines: [],
+    };
+  }
+
+  const record = await apiRequest<BackendCaseDetail>(endpoints.legalFile.cases, {
+    method: 'POST',
+    body: buildCreateCaseBody(input),
+  });
+  return mapBackendCaseDetail(record);
 };
 
 export const getLegalCases = async (): Promise<FrontendCase[]> => {

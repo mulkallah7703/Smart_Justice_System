@@ -17,6 +17,16 @@ import {
   type LlmProvider,
 } from './providers/llm-provider.interface';
 import {
+  asksForVerbatimPii,
+  PII_REFUSAL_AR,
+  redactPii,
+} from './privacy/pii';
+import {
+  describeRulingFacts,
+  extractRulingFacts,
+  guardGroundedAnswer,
+} from './providers/ruling-grounding';
+import {
   LEGAL_ANSWER_RETRY_SUFFIX,
   LEGAL_ANSWER_SYSTEM_PROMPT,
   INSUFFICIENT_EVIDENCE_ANSWER_AR,
@@ -54,9 +64,21 @@ export class AiAnswerService {
     const ai = this.configService.get('ai', { infer: true });
     const started = Date.now();
 
+    if (asksForVerbatimPii(body.query)) {
+      this.logger.warn('Answer refused: verbatim PII request');
+      return {
+        answer: PII_REFUSAL_AR,
+        claims: [],
+        insufficientEvidence: true,
+        model: this.llm.name === 'mock' ? 'mock-llm-v1' : ai.llmModel,
+      };
+    }
+
     const retrieved = await this.retrieval.retrieve(userId, {
       query: body.query,
       limit: Math.min(ai.llmMaxEvidenceItems, ai.retrievalMaxLimit),
+      caseId: body.caseId,
+      documentIds: body.documentIds,
     });
 
     const budgeted = this.applyEvidenceBudget(
@@ -84,6 +106,14 @@ export class AiAnswerService {
     const userPrompt = buildLegalAnswerUserPrompt({
       query: body.query,
       evidence: promptEvidence,
+      facts: describeRulingFacts(
+        extractRulingFacts(
+          promptEvidence
+            .filter((item) => !item.text.includes('ملخص التحليل:'))
+            .map((item) => item.text)
+            .join('\n'),
+        ),
+      ),
     });
 
     let raw = await this.callLlm(LEGAL_ANSWER_SYSTEM_PROMPT, userPrompt);
@@ -104,10 +134,17 @@ export class AiAnswerService {
       }
     }
 
-    const response = mapAnswerResponse({
+    const guarded = guardGroundedAnswer({
+      query: body.query,
       answer: parsed.value.answer,
       claims: parsed.value.claims,
       insufficientEvidence: parsed.value.insufficientEvidence,
+      evidence: promptEvidence,
+    });
+    const response = mapAnswerResponse({
+      answer: guarded.answer,
+      claims: guarded.claims,
+      insufficientEvidence: guarded.insufficientEvidence,
       model: raw.model,
       evidenceById,
     });
@@ -236,12 +273,20 @@ export class AiAnswerService {
       return { ok: false, reason: 'no_claims' };
     }
 
+    const answer = redactPii(record.answer.trim());
+    const redactedClaims = claims.map((claim) => ({
+      ...claim,
+      text: redactPii(claim.text),
+    }));
+    // Citations and the insufficient flag describe the same outcome.
+    const insufficientEvidence = redactedClaims.length === 0;
+
     return {
       ok: true,
       value: {
-        answer: record.answer.trim(),
-        claims,
-        insufficientEvidence: record.insufficientEvidence,
+        answer: answer.length > 0 ? answer : INSUFFICIENT_EVIDENCE_ANSWER_AR,
+        claims: redactedClaims,
+        insufficientEvidence,
       },
     };
   }

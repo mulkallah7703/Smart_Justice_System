@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import type { AppConfig } from '../config/env.validation';
+import { qdrantReadyRequest } from '../modules/ai/vector/qdrant-endpoint';
 import { MinioStorageService } from '../modules/documents/storage/minio.storage.service';
 import { RedisService } from '../shared/cache/redis.service';
 import { PrismaService } from '../shared/database/prisma.service';
@@ -30,7 +31,10 @@ export class HealthService {
       this.prisma.ping(),
       this.redis.ping(),
       this.checkObjectStorage(s3 !== null),
-      this.checkQdrant(ai.vectorStoreMode === 'qdrant' ? ai.qdrantUrl : null),
+      this.checkQdrant(
+        ai.vectorStoreMode === 'qdrant' ? ai.qdrantUrl : null,
+        ai.qdrantApiKey,
+      ),
     ]);
 
     const aiConfigOk = this.checkAiConfig(nodeEnv, ai);
@@ -73,17 +77,21 @@ export class HealthService {
     return this.storage.ping();
   }
 
-  private async checkQdrant(url: string | null): Promise<boolean | null> {
+  private async checkQdrant(
+    url: string | null,
+    apiKey: string | null,
+  ): Promise<boolean | null> {
     if (!url) {
       return null;
     }
     try {
-      const base = url.replace(/\/$/, '');
+      const probe = qdrantReadyRequest(url, apiKey);
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 3000);
       try {
-        const response = await fetch(`${base}/readyz`, {
+        const response = await fetch(probe.url, {
           method: 'GET',
+          headers: probe.headers,
           signal: controller.signal,
         });
         return response.ok;

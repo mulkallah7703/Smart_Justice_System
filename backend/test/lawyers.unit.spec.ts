@@ -18,6 +18,7 @@ import {
   type LawyerDetailRecord,
 } from '../src/modules/lawyers/mappers/lawyer.mapper';
 import { AvailabilityService } from '../src/modules/lawyers/availability.service';
+import { specialtyFromArabicQuery } from '../src/modules/lawyers/specialty-search';
 import { PrismaService } from '../src/shared/database/prisma.service';
 
 const at = (iso: string): Date => new Date(iso);
@@ -210,6 +211,12 @@ describe('availability range guards', () => {
       from: '2030-01-02T00:00:00Z',
       to: '2030-01-01T00:00:00Z',
     });
+  });
+
+  it('maps Arabic specialty words onto case-type enums', () => {
+    expect(specialtyFromArabicQuery('تجاري')).toBe('COMMERCIAL');
+    expect(specialtyFromArabicQuery('جزائي')).toBe('CRIMINAL');
+    expect(specialtyFromArabicQuery('الرياض')).toBeNull();
   });
 
   it('rejects a range wider than the maximum window', async () => {

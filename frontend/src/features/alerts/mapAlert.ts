@@ -18,6 +18,7 @@ export interface BackendAlert {
   triggeredAt: string;
   createdAt: string;
   dueAt: string | null;
+  caseId?: string | null;
 }
 
 const pad = (value: number): string => String(value).padStart(2, '0');
@@ -94,6 +95,7 @@ export const mapAlert = (dto: BackendAlert): Alert => {
     icon: iconFor(dto.type, dto.severity),
     isRead: dto.isRead,
     triggeredAt: dto.triggeredAt,
+    caseId: dto.caseId ?? null,
     ...(timeLeft
       ? {
           timeLeft,

@@ -93,8 +93,28 @@ export const pollAdvisorJob = async (
   return mapAdvisorJobPoll(record);
 };
 
+/** Analysis summary stored on a finished job (`result.output`). */
+export const fetchAdvisorJobOutput = async (
+  jobId: string,
+): Promise<string | null> => {
+  if (isMockApiMode()) {
+    return null;
+  }
+  const record = await apiRequest<BackendAiJobStatus>(
+    endpoints.advisor.jobs(jobId),
+  );
+  if (!record.result || typeof record.result !== 'object') {
+    return null;
+  }
+  const output = (record.result as { output?: unknown }).output;
+  return typeof output === 'string' && output.trim().length > 0
+    ? output.trim()
+    : null;
+};
+
 export const retrieveAdvisorEvidence = async (
   query: string,
+  scope?: { caseId?: string; documentIds?: string[] },
 ): Promise<BackendRetrieveResponse> => {
   if (isMockApiMode()) {
     await wait(250);
@@ -133,12 +153,19 @@ export const retrieveAdvisorEvidence = async (
 
   return apiRequest<BackendRetrieveResponse>(endpoints.advisor.retrieve, {
     method: 'POST',
-    body: { query },
+    body: {
+      query,
+      ...(scope?.caseId ? { caseId: scope.caseId } : {}),
+      ...(scope?.documentIds && scope.documentIds.length > 0
+        ? { documentIds: scope.documentIds }
+        : {}),
+    },
   });
 };
 
 export const answerAdvisorQuery = async (
   query: string,
+  scope?: { caseId?: string; documentIds?: string[] },
 ): Promise<AdvisorAnswerView> => {
   if (isMockApiMode()) {
     await wait(300);
@@ -206,7 +233,13 @@ export const answerAdvisorQuery = async (
     endpoints.advisor.answer,
     {
       method: 'POST',
-      body: { query },
+      body: {
+        query,
+        ...(scope?.caseId ? { caseId: scope.caseId } : {}),
+        ...(scope?.documentIds && scope.documentIds.length > 0
+          ? { documentIds: scope.documentIds }
+          : {}),
+      },
       timeoutMs: 60_000,
     },
   );

@@ -5,7 +5,7 @@ import type { Prisma } from '@prisma/client';
 import type { AppConfig } from '../../config/env.validation';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { AI_PIPELINE_VERSION } from './ai.constants';
-import { chunkPageText } from './chunking/text-chunker';
+import { chunkRulingPage } from './chunking/text-chunker';
 
 export interface PersistDocumentChunksInput {
   /** Owning citizen, re-checked against Document.userId. */
@@ -84,7 +84,7 @@ export class DocumentChunksService {
     const trustedChunkTexts: string[] = [];
 
     for (const page of trustedPages) {
-      const spans = chunkPageText(page.text, {
+      const spans = chunkRulingPage(page.text, {
         maxChars,
         overlap,
       });
@@ -97,6 +97,7 @@ export class DocumentChunksService {
           startOffset: span.startOffset,
           endOffset: span.endOffset,
           pipelineVersion: AI_PIPELINE_VERSION,
+          section: span.section ?? null,
         });
         trustedChunkTexts.push(span.text);
       }

@@ -7,6 +7,7 @@ import type { GuideSummaryResponseDto } from '../dto/guide-summary-response.dto'
 import type { GuideStage } from '../guide-stage';
 import {
   GUIDE_DOMAIN_LABELS_AR,
+  inferDurationDays,
   renderGuideReply,
   type GuideTurn,
 } from '../guide-turn';
@@ -53,6 +54,23 @@ export const mapGuideAnswer = (
   turn: mapGuideTurn(turn, clarificationCount),
 });
 
+const guideDurationDays = (turn: GuideTurn, transcript = ''): number =>
+  turn.durationDays ??
+  inferDurationDays(
+    [turn.guidance ?? '', turn.understanding, ...turn.knownFacts, transcript].join(
+      '\n',
+    ),
+  ) ??
+  0;
+
+const guideDurationValue = (turn: GuideTurn, transcript = ''): string => {
+  const days = guideDurationDays(turn, transcript);
+  if (days > 0) {
+    return `${days} يوماً حسب ما ورد في الحوار`;
+  }
+  return 'غير محددة — لا تتوفر مصادر موثّقة لتحديد المدد أو المواعيد';
+};
+
 const UNVERIFIED_NOTE =
   'معلومات عامة استرشادية غير مستندة إلى مصادر نظامية موثّقة، وليست حكماً قضائياً ولا استشارة قانونية ملزمة.';
 
@@ -60,6 +78,7 @@ const UNVERIFIED_NOTE =
 export const mapGuideSummary = (
   sessionId: string,
   turn: GuideTurn,
+  transcript = '',
 ): GuideSummaryResponseDto => ({
   sessionId,
   resultTitle: turn.urgent
@@ -74,8 +93,8 @@ export const mapGuideSummary = (
   authorityValue:
     turn.likelyAuthority ?? 'تُحدد بحسب تفاصيل المسألة بعد مراجعة مختص',
   durationLabel: 'المدة النظامية',
-  durationValue: 'غير محددة — لا تتوفر مصادر موثّقة لتحديد المدد أو المواعيد',
-  durationDays: 0,
+  durationValue: guideDurationValue(turn, transcript),
+  durationDays: guideDurationDays(turn, transcript),
   durationUnit: 'يوماً',
   docsTitle: 'مستندات يُستحسن تجهيزها',
   docs: turn.suggestedDocuments.map((label, index) => ({

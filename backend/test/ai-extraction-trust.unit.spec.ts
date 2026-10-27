@@ -16,7 +16,7 @@ describe('assignExtractionTrust', () => {
     ).toBe('TRUSTED');
   });
 
-  it('marks Arabic TEXT_LAYER as REVIEW_REQUIRED', () => {
+  it('trusts readable Arabic TEXT_LAYER, including the visual-order warning', () => {
     expect(
       assignExtractionTrust({
         method: 'TEXT_LAYER',
@@ -24,40 +24,91 @@ describe('assignExtractionTrust', () => {
         warnings: [],
         confidence: null,
       }),
-    ).toBe('REVIEW_REQUIRED');
-  });
-
-  it('marks TEXT_LAYER with PDF_TEXT_VISUAL_ORDER as REVIEW_REQUIRED', () => {
+    ).toBe('TRUSTED');
     expect(
       assignExtractionTrust({
         method: 'TEXT_LAYER',
-        text: 'هذه قضية',
+        text: 'هذه قضية إيجارية',
         warnings: [PDF_TEXT_VISUAL_ORDER],
         confidence: null,
       }),
-    ).toBe('REVIEW_REQUIRED');
+    ).toBe('TRUSTED');
   });
 
-  it('marks mixed Arabic/English TEXT_LAYER as REVIEW_REQUIRED', () => {
+  it('trusts mixed Arabic/English TEXT_LAYER', () => {
     expect(
       assignExtractionTrust({
         method: 'TEXT_LAYER',
         text: 'العقد رقم Contract No. 12/A',
+        warnings: [PDF_TEXT_VISUAL_ORDER],
+        confidence: null,
+      }),
+    ).toBe('TRUSTED');
+  });
+
+  it('trusts Arabic presentation forms after scoring normalisation', () => {
+    const presentation =
+      '\uFE8D\uFEDF\uFECC\uFED8\uFEAA \uFEAD\uFED7\uFEE2 \uFE8D\uFEDF\uFED8\uFEC0\uFEF4\uFE94';
+    const text = presentation;
+    expect(text.normalize('NFKC')).toBe('العقد رقم القضية');
+    expect(
+      assignExtractionTrust({
+        method: 'TEXT_LAYER',
+        text,
+        warnings: [PDF_TEXT_VISUAL_ORDER],
+        confidence: null,
+      }),
+    ).toBe('TRUSTED');
+    expect(text).toBe(presentation);
+  });
+
+  it('keeps bidi controls from blocking readable Arabic', () => {
+    expect(
+      assignExtractionTrust({
+        method: 'TEXT_LAYER',
+        text: '\u202Bعقد إيجار المادة الرابعة\u202C',
+        warnings: [PDF_TEXT_VISUAL_ORDER],
+        confidence: null,
+      }),
+    ).toBe('TRUSTED');
+  });
+
+  it('holds garbled TEXT_LAYER for review', () => {
+    expect(
+      assignExtractionTrust({
+        method: 'TEXT_LAYER',
+        text: `${'\uFFFD'.repeat(12)} ??? ###`,
+        warnings: [],
+        confidence: null,
+      }),
+    ).toBe('REVIEW_REQUIRED');
+    expect(
+      assignExtractionTrust({
+        method: 'TEXT_LAYER',
+        text: '§§§§§§§§',
         warnings: [],
         confidence: null,
       }),
     ).toBe('REVIEW_REQUIRED');
   });
 
-  it('marks non-empty OCR as REVIEW_REQUIRED', () => {
+  it('trusts readable high-confidence OCR, including Tesseract 0–100 scores', () => {
     expect(
       assignExtractionTrust({
         method: 'OCR',
-        text: 'recognised clause',
+        text: 'عقد إيجار المادة الرابعة',
         warnings: [],
-        confidence: 0.99,
+        confidence: 0.92,
       }),
-    ).toBe('REVIEW_REQUIRED');
+    ).toBe('TRUSTED');
+    expect(
+      assignExtractionTrust({
+        method: 'OCR',
+        text: 'عقد إيجار المادة الرابعة',
+        warnings: [],
+        confidence: 92,
+      }),
+    ).toBe('TRUSTED');
   });
 
   it('marks empty OCR as UNUSABLE', () => {
@@ -82,11 +133,22 @@ describe('assignExtractionTrust', () => {
     ).toBe('REVIEW_REQUIRED');
   });
 
-  it('never promotes high-confidence OCR to TRUSTED', () => {
+  it('does not trust OCR when confidence was not measured', () => {
     expect(
       assignExtractionTrust({
         method: 'OCR',
-        text: 'high confidence text',
+        text: 'MOCK_OCR_TEXT:recognised clause',
+        warnings: ['MOCK_OCR_NO_RECOGNITION_PERFORMED'],
+        confidence: null,
+      }),
+    ).toBe('REVIEW_REQUIRED');
+  });
+
+  it('does not trust high-confidence OCR when the text is garbled', () => {
+    expect(
+      assignExtractionTrust({
+        method: 'OCR',
+        text: `${'\uFFFD'.repeat(20)} ####`,
         warnings: [],
         confidence: 0.99,
       }),

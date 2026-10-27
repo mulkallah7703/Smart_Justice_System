@@ -1,7 +1,8 @@
-﻿import { Injectable, Logger } from '@nestjs/common';
+﻿import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConsultationStatus, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../shared/database/prisma.service';
+import { AlertsService } from '../alerts/alerts.service';
 import { overlaps, type Interval } from '../lawyers/availability.rules';
 import { AvailabilityService } from '../lawyers/availability.service';
 import { lawyerNotFound } from '../lawyers/lawyers.errors';
@@ -13,6 +14,8 @@ import {
 import {
   consultationConflict,
   consultationInPast,
+  consultationAlreadyCancelled,
+  consultationNotCancellable,
   consultationNotFound,
   consultationSlotUnavailable,
 } from './consultations.errors';
@@ -57,6 +60,7 @@ export class ConsultationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly availability: AvailabilityService,
+    @Optional() private readonly alerts?: AlertsService,
   ) {}
 
   /**
@@ -124,6 +128,7 @@ export class ConsultationsService {
       this.logger.log(
         `consultation booked id=${created.id} lawyerId=${dto.lawyerId} status=${created.status}`,
       );
+      await this.remind(userId, created.id, scheduledAt);
       return mapConsultation(created);
     } catch (error) {
       if (
@@ -172,6 +177,32 @@ export class ConsultationsService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async cancel(userId: string, consultationId: string): Promise<ConsultationDto> {
+    const existing = await this.prisma.consultation.findFirst({
+      where: { id: consultationId, userId, deletedAt: null },
+      select: { id: true, status: true },
+    });
+    if (!existing) {
+      throw consultationNotFound();
+    }
+    if (existing.status === ConsultationStatus.CANCELLED) {
+      throw consultationAlreadyCancelled();
+    }
+    if (
+      existing.status !== ConsultationStatus.PENDING &&
+      existing.status !== ConsultationStatus.CONFIRMED
+    ) {
+      throw consultationNotCancellable();
+    }
+
+    await this.prisma.consultation.update({
+      where: { id: consultationId },
+      data: { status: ConsultationStatus.CANCELLED },
+    });
+    this.logger.log(`consultation cancelled id=${consultationId}`);
+    return this.getById(userId, consultationId);
   }
 
   async getById(userId: string, consultationId: string): Promise<ConsultationDto> {
@@ -271,6 +302,27 @@ export class ConsultationsService {
 
     if (clash) {
       throw consultationConflict();
+    }
+  }
+
+  private async remind(
+    userId: string,
+    consultationId: string,
+    scheduledAt: Date,
+  ): Promise<void> {
+    if (!this.alerts) {
+      return;
+    }
+    try {
+      await this.alerts.create({
+        userId,
+        type: 'HEARING_REMINDER',
+        severity: 'INFO',
+        title: 'تذكير بموعد الاستشارة',
+        body: `موعد استشارتك في ${scheduledAt.toISOString()}.`,
+      });
+    } catch {
+      this.logger.warn(`consultation reminder failed id=${consultationId}`);
     }
   }
 }

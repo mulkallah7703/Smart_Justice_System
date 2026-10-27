@@ -39,7 +39,7 @@ export interface HomeService {
 
 export interface HomeData {
   user: HomeUser;
-  card: HomeJudicialCard;
+  card: HomeJudicialCard | null;
   alert: HomeAlert | null;
   services: HomeService[];
   cases: HomeCase[];

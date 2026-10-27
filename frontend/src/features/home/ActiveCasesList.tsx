@@ -23,6 +23,9 @@ const ActiveCasesList = ({ cases }: ActiveCasesListProps): JSX.Element => {
       />
 
       <div className={styles.list}>
+        {cases.length === 0 ? (
+          <p className={styles.empty}>{ar.home.cases.empty}</p>
+        ) : null}
         {cases.map((caseItem) => (
           <CaseCard
             key={caseItem.id}

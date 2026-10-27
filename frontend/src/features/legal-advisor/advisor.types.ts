@@ -25,6 +25,9 @@ export interface UploadedFileItem {
   status: UploadStatus;
   kind: FileKind;
   documentId?: string;
+  caseId?: string | null;
+  /** library rows are not sent to analyze unless nothing new was uploaded. */
+  origin?: 'library' | 'session';
 }
 
 export interface AnalyzeResponse {

@@ -24,6 +24,8 @@ import type { INestApplication, INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { AiJobStatus } from '@prisma/client';
 import { QdrantClient } from '@qdrant/js-client-rest';
+
+import { qdrantClientOptions } from '../../src/modules/ai/vector/qdrant-endpoint';
 import request from 'supertest';
 
 import { ANSWER_LLM_PROVIDER } from '../../src/modules/ai/providers/llm-provider.interface';
@@ -193,11 +195,7 @@ describeRagLive('LIVE FULL RAG PIPELINE', () => {
     });
     caseId = legalCase.id;
 
-    qdrant = new QdrantClient({
-      url: qdrantUrl.replace(/\/$/, ''),
-      apiKey: qdrantApiKey || undefined,
-      checkCompatibility: false,
-    });
+    qdrant = new QdrantClient(qdrantClientOptions(qdrantUrl, qdrantApiKey));
   }, 120_000);
 
   afterAll(async () => {

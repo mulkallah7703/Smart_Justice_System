@@ -35,7 +35,9 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    # minio/minio was removed from Docker Hub (2026-09). Silo is a drop-in
+    # S3 server that still accepts the MinIO server command and health URL.
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
     container_name: sjs-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -48,7 +50,7 @@ services:
     volumes:
       - sjs_minio_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 10

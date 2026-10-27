@@ -3,8 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled (Neon PgBouncer). Prisma Client uses this at runtime.
+  url       = env("DATABASE_URL")
+  // Direct host. Prisma Migrate uses this. Render start copies DATABASE_URL when unset.
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── ENUMS (aligned with the verified frontend contract) ─────────────────────
@@ -27,6 +30,7 @@ enum CaseType {
   COMMERCIAL
   PERSONAL
   LABOR
+  CRIMINAL
 }
 
 enum CaseStatus {
@@ -487,6 +491,8 @@ model DocumentChunk {
   chunkIndex      Int
   /// Exact pageText.slice(startOffset, endOffset). Never rewritten.
   text            String   @db.Text
+  /// Saudi ruling section (HEADER, FACTS, REASONS, RULING, BODY) when known.
+  section         String?
   /// UTF-16 offsets into DocumentPage.text.
   startOffset     Int
   endOffset       Int

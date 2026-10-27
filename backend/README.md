@@ -211,9 +211,10 @@ store. OCR may be `mock` or in-process `local` (tesseract.js).
 
 Document extraction (`AI_TEXT_EXTRACTOR_MODE=pdf`) reads the PDF text layer and
 falls back to OCR for pages without usable text. Every page receives an explicit
-trust status (`TRUSTED` | `REVIEW_REQUIRED` | `UNUSABLE`). Arabic TEXT_LAYER is
-order-unresolved (Option B) and `REVIEW_REQUIRED`. OCR is `REVIEW_REQUIRED` and
-is not authoritative legal text.
+trust status (`TRUSTED` | `REVIEW_REQUIRED` | `UNUSABLE`). Readable Arabic
+text layers are `TRUSTED`. Corrupted layers (broken presentation forms,
+duplicated runs, watermarks) are OCR'd and the higher quality score is kept.
+Low-confidence OCR stays `REVIEW_REQUIRED`.
 
 ### Advisor API
 
@@ -258,8 +259,13 @@ Answer (`POST /ai/advisor/answer`) — validated RAG citations
  ↓
 Frontend AI UI (not implemented)
 
-Arabic TEXT_LAYER and OCR remain `REVIEW_REQUIRED` and are **not** chunked,
-embedded, retrieved, or used as RAG evidence. Chunk text is never rewritten.
+Readable TEXT_LAYER and OCR pages, including Arabic, are `TRUSTED` and are
+chunked, embedded, retrieved, and cited. Corrupted Arabic text layers are
+replaced by OCR when recognition scores higher. Garbled extraction and
+low-confidence OCR stay `REVIEW_REQUIRED`. Chunk text is never reordered
+(Arabic visual order is kept; it is not reconstructed). Lam-alef and digits
+glued to words are repaired on the text-layer path. Answers can be limited to
+a `caseId` or `documentIds`.
 Qdrant is a **derived** index; PostgreSQL remains canonical. The LLM is not an
 authority — only validated retrieved evidence may ground answers.
 

@@ -6,6 +6,7 @@ import Header from '../../shared/components/Header';
 import Icon from '../../shared/components/Icon';
 import ScreenShell from '../../shared/components/ScreenShell';
 
+import AdvisorExperimentalNote from './AdvisorExperimentalNote';
 import ReportDocumentCard from './ReportDocumentCard';
 import { useAdvisoryReport } from './useAdvisoryReport';
 import styles from './AdvisoryReport.module.css';
@@ -54,6 +55,7 @@ const AdvisoryReport = (): JSX.Element => {
         />
 
         <div className={styles.content}>
+          <AdvisorExperimentalNote />
           {!isLoading && report ? <ReportDocumentCard report={report} /> : null}
           {!isLoading && !report ? (
             <p className={styles.emptyAnswer}>{ar.advisor.report.emptyAnswer}</p>

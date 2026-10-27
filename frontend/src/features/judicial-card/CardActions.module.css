@@ -26,6 +26,15 @@
   transform: scale(0.98);
 }
 
+.action:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.action:disabled:active {
+  transform: none;
+}
+
 .actionIcon {
   color: var(--color-primary);
 }

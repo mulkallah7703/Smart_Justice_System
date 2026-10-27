@@ -11,6 +11,14 @@ export const paymentNotFound = (): AppError =>
   );
 
 /** Also returned for another citizen's consultation so existence stays hidden. */
+export const paymentConsultationNotPayable = (): AppError =>
+  new AppError(
+    'PAYMENT_CONSULTATION_NOT_PAYABLE',
+    'This consultation cannot be paid in its current state',
+    'لا يمكن الدفع لهذه الاستشارة في حالتها الحالية',
+    HttpStatus.CONFLICT,
+  );
+
 export const paymentConsultationNotFound = (): AppError =>
   new AppError(
     'PAYMENT_CONSULTATION_NOT_FOUND',

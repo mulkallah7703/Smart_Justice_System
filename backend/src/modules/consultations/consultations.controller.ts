@@ -44,6 +44,14 @@ export class ConsultationsController {
     return wrapSuccess(result.items, result.pagination);
   }
 
+  @Post(':id/cancel')
+  cancel(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') consultationId: string,
+  ): Promise<ConsultationDto> {
+    return this.consultationsService.cancel(user.sub, consultationId);
+  }
+
   @Get(':id')
   getById(
     @CurrentUser() user: AuthenticatedUser,

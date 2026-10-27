@@ -75,6 +75,7 @@ jobs:
           docker build -f infra/docker/frontend.Dockerfile \
             --build-arg VITE_API_MODE=real \
             --build-arg VITE_API_BASE_URL=https://ci.example.com/api/v1 \
+            --build-arg VITE_AI_ADVISOR_EXPERIMENTAL=true \
             -t sjs-frontend:ci .
 
   # E2E requires Postgres/Redis/MinIO. Opt-in via repository variable ENABLE_E2E=true

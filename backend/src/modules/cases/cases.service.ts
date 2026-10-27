@@ -1,9 +1,13 @@
-﻿import { Injectable } from '@nestjs/common';
+import { randomBytes } from 'crypto';
+
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../shared/database/prisma.service';
-import { caseNotFound } from './cases.errors';
+import { AlertsService } from '../alerts/alerts.service';
+import { caseForbidden, caseNotFound } from './cases.errors';
 import type { CaseListQueryDto } from './dto/case-list-query.dto';
+import type { CreateCaseDto } from './dto/create-case.dto';
 import type { CaseDetailDto, CaseListResult } from './dto/case-response.dto';
 import { mapCaseDetail, mapCaseListItem } from './mappers/case.mapper';
 
@@ -12,7 +16,12 @@ const DEFAULT_LIMIT = 10;
 
 @Injectable()
 export class CasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(CasesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly alerts?: AlertsService,
+  ) {}
 
   async list(userId: string, query: CaseListQueryDto): Promise<CaseListResult> {
     const page = query.page ?? DEFAULT_PAGE;
@@ -119,5 +128,87 @@ export class CasesService {
     }
 
     return mapCaseDetail(record);
+  }
+
+  async create(userId: string, dto: CreateCaseDto): Promise<CaseDetailDto> {
+    const owner = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: { id: true, role: true },
+    });
+    if (!owner || owner.role !== 'CITIZEN') {
+      throw caseForbidden();
+    }
+
+    const authority = dto.authority?.trim() || null;
+    const notes = dto.notes?.trim() || null;
+    let createdId = '';
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const created = await this.prisma.case.create({
+          data: {
+            caseNumber: this.allocateCaseNumber(),
+            type: dto.type,
+            status: 'PENDING',
+            authority,
+            notes,
+            userId,
+            ...(dto.objectionDays
+              ? {
+                  deadlines: {
+                    create: {
+                      type: 'APPEAL',
+                      dueAt: new Date(Date.now() + dto.objectionDays * 24 * 60 * 60 * 1000),
+                      label: `مهلة اعتراض ${dto.objectionDays} يوماً`,
+                    },
+                  },
+                }
+              : {}),
+          },
+          select: { id: true },
+        });
+        createdId = created.id;
+        break;
+      } catch (error) {
+        const duplicate =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002';
+        if (duplicate && attempt < 2) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    if (!createdId) {
+      throw new Error('Unable to allocate a unique case number');
+    }
+
+    if (dto.objectionDays && this.alerts) {
+      const deadline = await this.prisma.deadline.findFirst({
+        where: { caseId: createdId },
+        select: { id: true },
+      });
+      if (deadline) {
+        await this.alerts.create({
+          userId,
+          caseId: createdId,
+          deadlineId: deadline.id,
+          type: 'DEADLINE',
+          severity: 'WARNING',
+          title: 'مهلة اعتراض',
+          body: `أُنشئت مهلة اعتراض مدتها ${dto.objectionDays} يوماً.`,
+        });
+      }
+    }
+
+    this.logger.log(`case created id=${createdId} type=${dto.type}`);
+    return this.getById(userId, createdId);
+  }
+
+  private allocateCaseNumber(): string {
+    const year = new Date().getUTCFullYear();
+    const suffix = randomBytes(4).toString('hex').toUpperCase();
+    return `SJS-${year}-${suffix}`;
   }
 }

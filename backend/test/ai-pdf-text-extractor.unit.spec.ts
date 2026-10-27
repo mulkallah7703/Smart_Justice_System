@@ -101,18 +101,18 @@ describe('PdfTextExtractor — valid documents', () => {
     expect(page.language).toBeNull();
   });
 
-  it('assigns TRUSTED to English TEXT_LAYER and REVIEW_REQUIRED to Arabic', async () => {
+  it('assigns TRUSTED to readable English and Arabic TEXT_LAYER pages', async () => {
     const english = (await extract(englishPdf())).pages[0] as ExtractedTextPage;
     const arabic = (await extract(arabicPdf())).pages[0] as ExtractedTextPage;
     const mixed = (await extract(mixedScriptPdf())).pages[0] as ExtractedTextPage;
 
     expect(english.trust).toBe('TRUSTED');
-    expect(arabic.trust).toBe('REVIEW_REQUIRED');
+    expect(arabic.trust).toBe('TRUSTED');
     expect(arabic.warnings).toContain(PDF_TEXT_VISUAL_ORDER);
-    expect(mixed.trust).toBe('REVIEW_REQUIRED');
+    expect(mixed.trust).toBe('TRUSTED');
   });
 
-  it('assigns REVIEW_REQUIRED to non-empty OCR pages', async () => {
+  it('assigns REVIEW_REQUIRED to mock OCR pages, which report no confidence', async () => {
     const page = (await extract(blankPagePdf())).pages[0] as ExtractedTextPage;
 
     expect(page.method).toBe('OCR');
@@ -302,8 +302,9 @@ describe('PdfTextExtractor — isolation', () => {
 
     await createPdfTextExtractor({ ocr }).extract(source(mixedTextAndBlankPdf()));
 
-    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledTimes(2);
     expect(spy.mock.calls[0][0].pageNumber).toBe(2);
+    expect(spy.mock.calls[1][0].pass).toBe('header-digits');
   });
 
   it('performs no network access', async () => {

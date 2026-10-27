@@ -4,6 +4,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../shared/database/prisma.service';
 import type { LawyerListQueryDto } from './dto/lawyer-list-query.dto';
 import type { LawyerDetailDto, LawyerListResult } from './dto/lawyer-response.dto';
+import { citySearchTerms } from './city-search';
+import { specialtyFromArabicQuery } from './specialty-search';
 import { lawyerNotFound } from './lawyers.errors';
 import { mapLawyerDetail, mapLawyerListItem } from './mappers/lawyer.mapper';
 
@@ -43,6 +45,8 @@ export class LawyersService {
     const page = query.page ?? DEFAULT_PAGE;
     const limit = query.limit ?? DEFAULT_LIMIT;
     const search = query.q?.trim();
+    const cities = search ? citySearchTerms(search) : [];
+    const arabicSpecialty = search ? specialtyFromArabicQuery(search) : null;
 
     const where: Prisma.LawyerWhereInput = {
       ...(query.specialty ? { specialties: { has: query.specialty } } : {}),
@@ -50,7 +54,12 @@ export class LawyersService {
         ? {
             OR: [
               { user: { name: { contains: search, mode: 'insensitive' } } },
-              { city: { contains: search, mode: 'insensitive' } },
+              ...cities.map((city) => ({
+                city: { contains: city, mode: 'insensitive' as const },
+              })),
+              ...(arabicSpecialty
+                ? [{ specialties: { has: arabicSpecialty } }]
+                : []),
             ],
           }
         : {}),

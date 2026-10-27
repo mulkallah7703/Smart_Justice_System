@@ -17,6 +17,8 @@ export class UsersService {
         id: true,
         name: true,
         role: true,
+        phone: true,
+        email: true,
         judicialCard: {
           select: {
             cardNumber: true,
@@ -35,6 +37,8 @@ export class UsersService {
       id: user.id,
       name: user.name,
       role: user.role,
+      phone: user.phone,
+      email: user.email,
       card: user.judicialCard,
     };
   }

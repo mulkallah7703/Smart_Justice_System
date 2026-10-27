@@ -29,6 +29,7 @@
   },
   booking: {
     create: '/consultations',
+    list: '/consultations',
     detail: (id: string) => `/consultations/${encodeURIComponent(id)}`,
   },
   payments: {

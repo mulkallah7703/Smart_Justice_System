@@ -35,6 +35,9 @@ const ConsultationType = lazy(
 const PaymentScreen = lazy(
   () => import('../../features/payment/PaymentScreen'),
 );
+const BookingConfirmation = lazy(
+  () => import('../../features/booking/BookingConfirmation'),
+);
 const JudicialCardScreen = lazy(
   () => import('../../features/judicial-card/JudicialCardScreen'),
 );
@@ -162,6 +165,14 @@ const AppRouter = (): JSX.Element => {
           element={
             <RequireAuth>
               <ConsultationType />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/booking/confirmed/:consultationId"
+          element={
+            <RequireAuth>
+              <BookingConfirmation />
             </RequireAuth>
           }
         />

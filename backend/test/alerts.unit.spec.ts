@@ -17,6 +17,7 @@ const alertRecord = (overrides: Partial<AlertRecord> = {}): AlertRecord => ({
   isRead: false,
   triggeredAt: new Date('2030-01-01T10:00:00.000Z'),
   createdAt: new Date('2030-01-01T10:00:00.000Z'),
+  caseId: 'case-1',
   deadline: { dueAt: new Date('2030-01-05T10:00:00.000Z') },
   ...overrides,
 });
@@ -63,9 +64,9 @@ describe('mapAlert', () => {
       triggeredAt: '2030-01-01T10:00:00.000Z',
       createdAt: '2030-01-01T10:00:00.000Z',
       dueAt: '2030-01-05T10:00:00.000Z',
+      caseId: 'case-1',
     });
     expect(mapped).not.toHaveProperty('userId');
-    expect(mapped).not.toHaveProperty('caseId');
     expect(mapped).not.toHaveProperty('deadlineId');
   });
 
@@ -198,5 +199,52 @@ describe('AlertsService', () => {
         }),
       }),
     );
+  });
+
+  it('does not create a second DEADLINE alert with the same case and body', async () => {
+    const existing = alertRecord({ id: 'existing-deadline' });
+    const create = jest.fn();
+    const service = createService({
+      alert: {
+        findFirst: jest.fn().mockResolvedValue(existing),
+        create,
+      },
+    } as unknown as PrismaService);
+
+    const result = await service.create({
+      userId,
+      caseId: 'case-1',
+      type: 'DEADLINE',
+      severity: 'WARNING',
+      title: 'مهلة اعتراض',
+      body: 'رصد التحليل مهلة اعتراض مدتها 30 يوماً.',
+    });
+
+    expect(result.id).toBe(existing.id);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('notifies the alerts gateway after a new alert is stored', async () => {
+    const created = alertRecord({ id: 'new-alert' });
+    const notify = jest.fn();
+    const service = new AlertsService(
+      {
+        alert: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue(created),
+        },
+      } as unknown as PrismaService,
+      { notify } as never,
+    );
+
+    await service.create({
+      userId,
+      type: 'DEADLINE',
+      severity: 'WARNING',
+      title: 'مهلة اعتراض',
+      body: 'ثلاثين يوماً',
+    });
+
+    expect(notify).toHaveBeenCalledWith(userId, 'new-alert', 'case-1');
   });
 });

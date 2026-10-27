@@ -45,8 +45,14 @@ describeLive('LIVE INTEGRATION TESTS', () => {
   });
 
   it('pings live Qdrant readyz', async () => {
-    const url = process.env.LIVE_QDRANT_URL!.replace(/\/$/, '');
-    const response = await fetch(`${url}/readyz`);
+    const { qdrantReadyRequest } = await import(
+      '../../src/modules/ai/vector/qdrant-endpoint'
+    );
+    const probe = qdrantReadyRequest(
+      process.env.LIVE_QDRANT_URL!,
+      process.env.LIVE_QDRANT_API_KEY || process.env.AI_QDRANT_API_KEY,
+    );
+    const response = await fetch(probe.url, { headers: probe.headers });
     expect(response.ok).toBe(true);
   });
 

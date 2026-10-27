@@ -27,6 +27,9 @@ import {
   aiGuideSummaryNotReady,
 } from './errors/guide.errors';
 import {
+  fallbackGuideTurn,
+  greetingGuideTurn,
+  forceDirectGuideAnswer,
   GUIDE_MAX_CLARIFICATIONS,
   parseGuideTurn,
   readStoredGuideTurn,
@@ -153,20 +156,26 @@ export class AiGuideService {
       throw aiGuideSessionNotFound();
     }
 
-    const latest = await this.prisma.aiGuideMessage.findMany({
-      where: { sessionId: session.id, role: 'ASSISTANT' },
-      orderBy: { createdAt: 'desc' },
-      select: { analysis: true },
-      take: 20,
+    const messages = await this.prisma.aiGuideMessage.findMany({
+      where: { sessionId: session.id },
+      orderBy: { createdAt: 'asc' },
+      select: { role: true, content: true, analysis: true },
     });
-    const guidance = latest
-      .map((m) => readStoredGuideTurn(m.analysis))
+    const guidance = [...messages]
+      .reverse()
+      .map((message) =>
+        message.role === 'ASSISTANT' ? readStoredGuideTurn(message.analysis) : null,
+      )
       .find((turn) => turn !== null && !turn.needsClarification);
     if (!guidance) {
       throw aiGuideSummaryNotReady();
     }
+    const transcript = messages
+      .filter((message) => message.role === 'USER')
+      .map((message) => message.content)
+      .join('\n');
 
-    return mapGuideSummary(session.id, guidance);
+    return mapGuideSummary(session.id, guidance, transcript);
   }
 
   /**
@@ -254,6 +263,13 @@ export class AiGuideService {
       mustAnswer,
       previousQuestions: state.previousQuestions,
     };
+    const latestUser =
+      [...state.turns].reverse().find((turn) => turn.role === 'USER')?.content ??
+      state.originalQuestion;
+    const greeting = greetingGuideTurn(latestUser);
+    if (greeting) {
+      return greeting;
+    }
 
     const first = await this.llm.generateAnswer({
       systemPrompt: LEGAL_GUIDE_SYSTEM_PROMPT,
@@ -261,7 +277,7 @@ export class AiGuideService {
     });
     const parsed = parseGuideTurn(first.text, parseContext);
     if (parsed.ok) {
-      return parsed.value;
+      return forceDirectGuideAnswer(parsed.value, latestUser);
     }
     this.logger.warn(`Guide turn rejected reason=${parsed.reason}; retrying once`);
 
@@ -271,10 +287,12 @@ export class AiGuideService {
     });
     const retried = parseGuideTurn(second.text, parseContext);
     if (retried.ok) {
-      return retried.value;
+      return forceDirectGuideAnswer(retried.value, latestUser);
     }
-    this.logger.warn(`Guide turn rejected after retry reason=${retried.reason}`);
-    throw aiGuideFailed();
+    this.logger.warn(
+      `Guide turn rejected after retry reason=${retried.reason}; using Arabic fallback`,
+    );
+    return fallbackGuideTurn(retried.reason);
   }
 
   private mapProviderError(error: unknown): AppError {

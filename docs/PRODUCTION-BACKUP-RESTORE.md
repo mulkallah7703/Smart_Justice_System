@@ -84,7 +84,7 @@ If vectors are lost but Postgres chunks remain:
 
 1. Ensure payload indexes exist (`userId`, `trust`, `embeddingModel`, `pipelineVersion`) — created by `QdrantVectorStore.ensureCollection`.  
 2. Re-queue document analysis / embedding for affected documents (TRUSTED chunks only).  
-3. Arabic TEXT_LAYER and OCR remain `REVIEW_REQUIRED` and are **not** embedded (unchanged policy).
+3. Only `TRUSTED` chunks are embedded. Readable Arabic text-layer and OCR pages are trusted; garbled or low-confidence pages stay `REVIEW_REQUIRED` and are not embedded.
 
 Vectors are **not** the source of truth for citation text — Postgres `DocumentChunk.text` is.
 

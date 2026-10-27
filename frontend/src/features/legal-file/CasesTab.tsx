@@ -1,26 +1,74 @@
 ﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import AlertBanner from '../../shared/components/AlertBanner';
+import { ar } from '../../core/i18n/ar';
+import { ApiError, getUserFacingCaseError } from '../../shared/api/errors';
 import CaseCard from '../../shared/components/CaseCard';
 import EmptyState from '../../shared/components/EmptyState';
-import { ar } from '../../core/i18n/ar';
 
 import AddCaseCard from './AddCaseCard';
+import { createLegalCase } from './legalFileApi';
 
+import type { BackendCaseType } from './cases.types';
 import type { LegalCase } from './legalFile.types';
 import styles from './CasesTab.module.css';
+
+const CASE_TYPES: BackendCaseType[] = [
+  'RENTAL',
+  'COMMERCIAL',
+  'PERSONAL',
+  'LABOR',
+  'CRIMINAL',
+];
 
 interface CasesTabProps {
   cases: LegalCase[];
   isLoading: boolean;
+  onCreated?: () => void;
 }
 
-const CasesTab = ({ cases, isLoading }: CasesTabProps): JSX.Element => {
+const CasesTab = ({
+  cases,
+  isLoading,
+  onCreated,
+}: CasesTabProps): JSX.Element => {
   const navigate = useNavigate();
-  // There is no case-linking workflow yet (cases are read-only and linked server-side);
-  // the action must say so instead of creating or implying a court case.
-  const [showUnavailable, setShowUnavailable] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [type, setType] = useState<BackendCaseType>('RENTAL');
+  const [authority, setAuthority] = useState('');
+  const [notes, setNotes] = useState('');
+  const [objectionDays, setObjectionDays] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleSubmit = async (): Promise<void> => {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    const days = Number.parseInt(objectionDays, 10);
+    try {
+      await createLegalCase({
+        type,
+        authority,
+        notes,
+        objectionDays: Number.isFinite(days) ? days : undefined,
+      });
+      setIsOpen(false);
+      setAuthority('');
+      setNotes('');
+      setObjectionDays('');
+      onCreated?.();
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'CASE_RATE_LIMITED') {
+        setErrorMessage(ar.legalFile.createCase.rateLimited);
+      } else if (error instanceof ApiError) {
+        setErrorMessage(getUserFacingCaseError(error));
+      } else {
+        setErrorMessage(ar.legalFile.createCase.generic);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className={styles.list}>
@@ -46,10 +94,87 @@ const CasesTab = ({ cases, isLoading }: CasesTabProps): JSX.Element => {
             />
           ))
         : null}
-      <AddCaseCard onClick={() => setShowUnavailable(true)} />
-      {showUnavailable ? (
-        <AlertBanner variant="info" message={ar.legalFile.addCaseUnavailable} />
-      ) : null}
+      {isOpen ? (
+        <form
+          className={styles.form}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSubmit();
+          }}
+        >
+          <h2 className={styles.formTitle}>{ar.legalFile.createCase.title}</h2>
+          <label className={styles.field}>
+            <span>{ar.legalFile.createCase.typeLabel}</span>
+            <select
+              aria-label={ar.legalFile.createCase.typeLabel}
+              value={type}
+              onChange={(event) => setType(event.target.value as BackendCaseType)}
+            >
+              {CASE_TYPES.map((option) => (
+                <option key={option} value={option}>
+                  {ar.legalFile.caseTypes[option]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.field}>
+            <span>{ar.legalFile.createCase.authorityLabel}</span>
+            <input
+              aria-label={ar.legalFile.createCase.authorityLabel}
+              value={authority}
+              maxLength={200}
+              placeholder={ar.legalFile.createCase.authorityPlaceholder}
+              onChange={(event) => setAuthority(event.target.value)}
+            />
+          </label>
+          <label className={styles.field}>
+            <span>{ar.legalFile.addCaseObjectionLabel}</span>
+            <input
+              aria-label={ar.legalFile.addCaseObjectionLabel}
+              inputMode="numeric"
+              value={objectionDays}
+              onChange={(event) => setObjectionDays(event.target.value)}
+            />
+          </label>
+          <label className={styles.field}>
+            <span>{ar.legalFile.createCase.notesLabel}</span>
+            <textarea
+              value={notes}
+              maxLength={2000}
+              rows={3}
+              placeholder={ar.legalFile.createCase.notesPlaceholder}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </label>
+          {errorMessage ? (
+            <p className={styles.error} role="alert">
+              {errorMessage}
+            </p>
+          ) : null}
+          <div className={styles.formActions}>
+            <button
+              type="button"
+              className={styles.secondary}
+              onClick={() => setIsOpen(false)}
+              disabled={isSubmitting}
+            >
+              {ar.legalFile.createCase.cancel}
+            </button>
+            <button type="submit" className={styles.primary} disabled={isSubmitting}>
+              {isSubmitting
+                ? ar.legalFile.createCase.submitting
+                : ar.legalFile.createCase.submit}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <AddCaseCard
+          onClick={() => {
+            setErrorMessage(null);
+            setIsOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 };

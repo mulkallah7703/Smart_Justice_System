@@ -2,13 +2,13 @@
 
 import { AuthModule } from '../auth/auth.module';
 import { AlertsController } from './alerts.controller';
-import { AlertsService } from './alerts.service';
+import { AlertsCoreModule } from './alerts-core.module';
 import { DeadlineWatcherService } from './deadline-watcher.service';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, AlertsCoreModule],
   controllers: [AlertsController],
-  providers: [AlertsService, DeadlineWatcherService],
-  exports: [AlertsService],
+  providers: [DeadlineWatcherService],
+  exports: [AlertsCoreModule],
 })
 export class AlertsModule {}

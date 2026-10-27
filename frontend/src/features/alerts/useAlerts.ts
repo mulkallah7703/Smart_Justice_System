@@ -4,6 +4,7 @@ import { getUserFacingAlertError } from '../../shared/api/errors';
 
 import { fetchAlerts, markAlertRead } from './alertsApi';
 import { alertsStore } from './alertsStore';
+import { useWebSocket } from './useWebSocket';
 
 import type { Alert, AlertFilterId } from './alerts.types';
 
@@ -34,39 +35,39 @@ export const useAlerts = (filter: AlertFilterId): UseAlertsResult => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const setUnreadCount = alertsStore((state) => state.setUnreadCount);
 
+  const loadAlerts = useCallback(async (): Promise<void> => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const data = await fetchAlerts();
+      setAllAlerts(data);
+      setUnreadCount(data.filter((alert) => !alert.isRead).length);
+    } catch (error) {
+      setErrorMessage(getUserFacingAlertError(error));
+      setAllAlerts([]);
+      setUnreadCount(0);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [setUnreadCount]);
+
   useEffect(() => {
     let cancelled = false;
-
-    const loadAlerts = async (): Promise<void> => {
-      setIsLoading(true);
-      setErrorMessage(null);
-      try {
-        const data = await fetchAlerts();
-        if (cancelled) {
-          return;
-        }
-
-        setAllAlerts(data);
-        setUnreadCount(data.filter((alert) => !alert.isRead).length);
-      } catch (error) {
-        if (!cancelled) {
-          setErrorMessage(getUserFacingAlertError(error));
-          setAllAlerts([]);
-          setUnreadCount(0);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+    void loadAlerts().then(() => {
+      if (cancelled) {
+        return;
       }
-    };
-
-    void loadAlerts();
-
+    });
     return () => {
       cancelled = true;
     };
-  }, [setUnreadCount]);
+  }, [loadAlerts]);
+
+  useWebSocket(
+    useCallback(() => {
+      void loadAlerts();
+    }, [loadAlerts]),
+  );
 
   const handleRead = useCallback(
     (id: string) => {

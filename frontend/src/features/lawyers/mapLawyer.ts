@@ -15,6 +15,7 @@ const SPECIALTY_LABELS: Record<LawyerSpecialty, string> = {
   PERSONAL: ar.lawyers.filters.personal,
   COMMERCIAL: ar.lawyers.filters.commercial,
   LABOR: ar.lawyers.filters.labor,
+  CRIMINAL: ar.lawyers.filters.criminal,
 };
 
 const isKnownSpecialty = (value: string): value is LawyerSpecialty =>

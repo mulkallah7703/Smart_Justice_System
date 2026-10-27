@@ -84,6 +84,7 @@ const createJobsStub = (
       state.stageIndex = stageIndex;
       return Promise.resolve();
     },
+    reportProgress: () => Promise.resolve(),
     markDone: (_id: string, result: unknown) => {
       state.status = 'DONE';
       state.result = result;
@@ -218,6 +219,14 @@ const createProcessor = (
     pages?: DocumentPagesService;
     chunks?: DocumentChunksService;
     embed?: EmbeddingIngestService;
+    prisma?: {
+      document: {
+        updateMany: jest.Mock;
+        findMany: jest.Mock;
+      };
+      deadline: { create: jest.Mock; findFirst?: jest.Mock };
+    };
+    alerts?: { create: jest.Mock };
   } = {},
 ): AiJobProcessor =>
   new AiJobProcessor(
@@ -229,6 +238,16 @@ const createProcessor = (
     storage,
     overrides.extractor ?? new MockTextExtractor(new MockOcrProvider()),
     overrides.llm ?? new MockLlmProvider(),
+    (overrides.prisma ?? {
+      document: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      deadline: { create: jest.fn().mockResolvedValue({ id: 'deadline-1' }) },
+    }) as never,
+    (overrides.alerts ?? {
+      create: jest.fn().mockResolvedValue({ id: 'alert-1' }),
+    }) as never,
   );
 
 const controlledPage = (
@@ -539,6 +558,187 @@ describe('AI job processor', () => {
     expect(state.status).toBe('FAILED');
     expect(state.attempts).toBe(3);
     expect(state.attempts).toBe(state.maxAttempts);
+  });
+
+  it('raises extract progress past 10 percent, stores token usage, and marks documents analyzed', async () => {
+    const { service, state } = createJobsStub(['doc-1']);
+    const progress: number[] = [];
+    const jobs = {
+      ...service,
+      reportProgress: (_id: string, _stage: number, value: number) => {
+        progress.push(value);
+        return Promise.resolve();
+      },
+    } as unknown as AiJobsService;
+    const prisma = {
+      document: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'doc-1', caseId: 'case-custody' },
+        ]),
+      },
+      deadline: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'deadline-1' }),
+      },
+    };
+    const alerts = { create: jest.fn().mockResolvedValue({ id: 'alert-1' }) };
+    const extractor: TextExtractor = {
+      name: 'progress-extractor',
+      extract: async (source) => {
+        await source.onPageSettled?.(1, 2);
+        await source.onPageSettled?.(2, 2);
+        return {
+          documentId: source.documentId,
+          engine: 'progress-extractor',
+          ocrEngine: null,
+          pages: [
+            controlledPage({
+              trust: 'TRUSTED',
+              method: 'OCR',
+              text: 'تاريخ الحكم 12 ربيع الأول 1447. يجوز الاعتراض خلال ثلاثين يوما',
+            }),
+          ],
+        };
+      },
+    };
+
+    await createProcessor(jobs, createStorageStub(), {
+      extractor,
+      prisma,
+      alerts,
+    }).process(job('ai-1'));
+
+    expect(progress.some((value) => value > 10 && value < 100)).toBe(true);
+    expect(prisma.document.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['doc-1'] }, userId: 'user-1' },
+      data: { status: 'READY', isAnalyzed: true },
+    });
+    expect(prisma.deadline.create).toHaveBeenCalled();
+    const dueAt = prisma.deadline.create.mock.calls[0][0].data.dueAt as Date;
+    expect(dueAt.getTime()).toBeLessThan(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    expect(alerts.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        caseId: 'case-custody',
+        type: 'DEADLINE',
+      }),
+    );
+    expect(state.result).toEqual(
+      expect.objectContaining({
+        promptTokens: expect.any(Number),
+        completionTokens: expect.any(Number),
+      }),
+    );
+  });
+
+  it('does not open an objection deadline for a final ruling', async () => {
+    const { service } = createJobsStub(['doc-final']);
+    const prisma = {
+      document: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'doc-final', caseId: 'case-final' },
+        ]),
+      },
+      deadline: { findFirst: jest.fn(), create: jest.fn() },
+    };
+    const alerts = { create: jest.fn() };
+    const extractor: TextExtractor = {
+      name: 'final-extractor',
+      extract: (source) =>
+        Promise.resolve({
+          documentId: source.documentId,
+          engine: 'final-extractor',
+          ocrEngine: null,
+          pages: [
+            controlledPage({
+              trust: 'TRUSTED',
+              method: 'TEXT_LAYER',
+              text: 'حكم نهائي غير قابل للاعتراض',
+            }),
+          ],
+        }),
+    };
+
+    await createProcessor(service, createStorageStub(), {
+      extractor,
+      prisma,
+      alerts,
+    }).process(job('ai-final'));
+
+    expect(prisma.document.updateMany).toHaveBeenCalled();
+    expect(prisma.deadline.create).not.toHaveBeenCalled();
+    expect(alerts.create).not.toHaveBeenCalled();
+  });
+
+  it('does not count an objection window from the analysis clock when no ruling date is written', async () => {
+    const { service } = createJobsStub(['doc-open']);
+    const prisma = {
+      document: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findMany: jest.fn().mockResolvedValue([{ id: 'doc-open', caseId: 'case-open' }]),
+      },
+      deadline: { findFirst: jest.fn(), create: jest.fn() },
+    };
+    const extractor: TextExtractor = {
+      name: 'dateless-extractor',
+      extract: (source) =>
+        Promise.resolve({
+          documentId: source.documentId,
+          engine: 'dateless-extractor',
+          ocrEngine: null,
+          pages: [
+            controlledPage({
+              trust: 'TRUSTED',
+              method: 'TEXT_LAYER',
+              text: 'يجوز الاعتراض خلال ثلاثين يوما',
+            }),
+          ],
+        }),
+    };
+    await createProcessor(service, createStorageStub(), {
+      extractor,
+      prisma,
+      alerts: { create: jest.fn() },
+    }).process(job('ai-open'));
+    expect(prisma.deadline.create).not.toHaveBeenCalled();
+  });
+
+  it('does not insert a second appeal deadline with the same label', async () => {
+    const { service } = createJobsStub(['doc-1']);
+    const prisma = {
+      document: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findMany: jest.fn().mockResolvedValue([{ id: 'doc-1', caseId: 'case-custody' }]),
+      },
+      deadline: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'deadline-existing' }),
+        create: jest.fn(),
+      },
+    };
+    const extractor: TextExtractor = {
+      name: 'dedupe-extractor',
+      extract: (source) =>
+        Promise.resolve({
+          documentId: source.documentId,
+          engine: 'dedupe-extractor',
+          ocrEngine: null,
+          pages: [
+            controlledPage({
+              trust: 'TRUSTED',
+              method: 'OCR',
+              text: 'تاريخ الحكم 12 ربيع الأول 1447. يجوز الاعتراض خلال ثلاثين يوما',
+            }),
+          ],
+        }),
+    };
+    await createProcessor(service, createStorageStub(), {
+      extractor,
+      prisma,
+      alerts: { create: jest.fn() },
+    }).process(job('ai-dedupe'));
+    expect(prisma.deadline.create).not.toHaveBeenCalled();
   });
 });
 
