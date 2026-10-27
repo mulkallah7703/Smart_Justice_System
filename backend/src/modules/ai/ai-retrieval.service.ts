@@ -11,6 +11,10 @@ import {
   aiRetrievalFailed,
 } from './ai.errors';
 import { normalizeForEmbedding } from './chunking/text-normalize';
+import {
+  rewriteArabicLegalQuery,
+  rulingTermBoost,
+} from './providers/ruling-grounding';
 import type { RetrieveQueryDto } from './dto/retrieve-query.dto';
 import type { RetrieveResponseDto } from './dto/retrieve-response.dto';
 import {
@@ -90,7 +94,9 @@ export class AiRetrievalService {
       // Embedding input only — NFC/whitespace normalize; Postgres keeps original.
       // Never log query text.
       const embedded = await this.embeddings.embed({
-        texts: [normalizeForEmbedding(body.query)],
+        texts: [
+          normalizeForEmbedding(rewriteArabicLegalQuery(body.query)),
+        ],
       });
       if (
         embedded.dimensions !== ai.embeddingDimensions ||
@@ -147,14 +153,27 @@ export class AiRetrievalService {
       throw aiRetrievalFailed();
     }
 
-    const deduped = this.dedupeByChunkId(hits);
-    if (scopedDocumentIds && scopedDocumentIds.length > 0) {
-      const priorityIds = await this.findScopedPriorityChunkIds(
-        userId,
-        body,
-        scopedDocumentIds,
-        embedModel,
+    let deduped = this.dedupeByChunkId(hits);
+    let activeIds = scopedDocumentIds;
+    if (deduped.length > 0) {
+      activeIds = await this.focusDocumentIds(userId, deduped, scopedDocumentIds);
+      deduped = deduped.filter((hit) =>
+        activeIds?.includes(hit.payload.documentId),
       );
+    }
+    if (activeIds && activeIds.length > 0) {
+      let priorityIds: string[] = [];
+      try {
+        priorityIds = await this.findScopedPriorityChunkIds(
+          userId,
+          body,
+          activeIds,
+          embedModel,
+        );
+      } catch {
+        this.logger.warn('PostgreSQL chunk lookup failed');
+        throw aiRetrievalFailed();
+      }
       for (const chunkId of priorityIds) {
         if (deduped.some((hit) => hit.chunkId === chunkId)) {
           continue;
@@ -164,7 +183,7 @@ export class AiRetrievalService {
           score: 0.95,
           payload: {
             chunkId,
-            documentId: scopedDocumentIds[0] ?? '',
+            documentId: activeIds[0] ?? '',
             documentPageId: '',
             userId,
             pageNumber: 0,
@@ -203,7 +222,7 @@ export class AiRetrievalService {
           document: {
             userId,
             deletedAt: null,
-            ...(scopedDocumentIds ? { id: { in: [...scopedDocumentIds] } } : {}),
+            ...(activeIds ? { id: { in: [...activeIds] } } : {}),
             ...(body.caseId ? { caseId: body.caseId } : {}),
           },
         },
@@ -247,7 +266,22 @@ export class AiRetrievalService {
         droppedCount += 1;
         continue;
       }
-      results.push(mapRetrieveResultItem(hit.score, row));
+      results.push(
+        mapRetrieveResultItem(hit.score + rulingTermBoost(row.text), row),
+      );
+    }
+    results.sort((left, right) => right.score - left.score);
+
+    const summary = await this.loadAnalysisSummary(
+      userId,
+      activeIds ?? results.map((item) => item.provenance.documentId),
+    );
+    if (summary && results[0]) {
+      results.splice(1, 0, {
+        score: results[0].score,
+        text: `ملخص التحليل:\n${summary}`,
+        provenance: { ...results[0].provenance },
+      });
     }
 
     this.logger.log(
@@ -320,15 +354,115 @@ export class AiRetrievalService {
           { section: 'RULING' },
           { text: { contains: 'منطوق الحكم' } },
           { text: { contains: 'نص الحكم' } },
-          ...(keyword
-            ? [{ text: { contains: keyword } }]
-            : []),
+          { text: { contains: 'حكمت المحكمة' } },
+          { text: { contains: 'حق الاعتراض' } },
+          { text: { contains: 'استئناف' } },
+          ...(keyword ? [{ text: { contains: keyword } }] : []),
         ],
       },
       select: { id: true },
       take: 8,
     });
     return rows.map((row) => row.id);
+  }
+
+  /**
+   * Keeps the case with the strongest hit. Unscoped search never mixes
+   * facts from the caller's other cases.
+   */
+  private async focusDocumentIds(
+    userId: string,
+    hits: readonly VectorSearchHit[],
+    scopedDocumentIds: readonly string[] | undefined,
+  ): Promise<readonly string[]> {
+    const hitIds = [
+      ...new Set(hits.map((hit) => hit.payload.documentId).filter(Boolean)),
+    ];
+    const ids = scopedDocumentIds ?? hitIds;
+    let rows: Array<{ id: string; caseId: string | null }> = [];
+    try {
+      rows = await this.prisma.document.findMany({
+        where: { userId, deletedAt: null, id: { in: [...ids] } },
+        select: { id: true, caseId: true },
+      });
+    } catch {
+      rows = [];
+    }
+    if (rows.length === 0) {
+      const top = hits[0]?.payload.documentId;
+      return top ? [top] : [...(scopedDocumentIds ?? [])];
+    }
+    const caseKey = (id: string): string => {
+      const row = rows.find((item) => item.id === id);
+      return row?.caseId ?? id;
+    };
+    const groups = new Map<string, { score: number; docs: Set<string> }>();
+    for (const hit of hits) {
+      const docId = hit.payload.documentId;
+      if (scopedDocumentIds && !scopedDocumentIds.includes(docId)) {
+        continue;
+      }
+      const key = caseKey(docId);
+      const group = groups.get(key) ?? { score: -Infinity, docs: new Set<string>() };
+      if (hit.score > group.score) {
+        group.score = hit.score;
+      }
+      group.docs.add(docId);
+      groups.set(key, group);
+    }
+    if (groups.size === 0) {
+      return [...(scopedDocumentIds ?? hitIds)];
+    }
+    let winner = '';
+    let winnerScore = -Infinity;
+    for (const [key, group] of groups) {
+      if (group.score > winnerScore) {
+        winner = key;
+        winnerScore = group.score;
+      }
+    }
+    const sameCase = rows
+      .filter((row) => (row.caseId ?? row.id) === winner)
+      .map((row) => row.id);
+    return sameCase.length > 0 ? sameCase : [...(groups.get(winner)?.docs ?? [])];
+  }
+
+  /** Latest analysis summary for the focused documents. Missing mocks skip it. */
+  private async loadAnalysisSummary(
+    userId: string,
+    documentIds: readonly string[],
+  ): Promise<string | null> {
+    const jobs = (
+      this.prisma as unknown as {
+        aiJob?: {
+          findFirst: (args: unknown) => Promise<{ resultJson: unknown } | null>;
+        };
+      }
+    ).aiJob;
+    if (!jobs?.findFirst || documentIds.length === 0) {
+      return null;
+    }
+    try {
+      const job = await jobs.findFirst({
+        where: {
+          userId,
+          status: 'DONE',
+          documents: { some: { documentId: { in: [...documentIds] } } },
+        },
+        orderBy: { completedAt: 'desc' },
+        select: { resultJson: true },
+      });
+      const result = job?.resultJson;
+      if (!result || typeof result !== 'object') {
+        return null;
+      }
+      const output = (result as { output?: unknown }).output;
+      return typeof output === 'string' && output.trim().length > 0
+        ? output.trim().slice(0, 1500)
+        : null;
+    } catch {
+      return null;
+    }
   }
 
   private dedupeByChunkId(

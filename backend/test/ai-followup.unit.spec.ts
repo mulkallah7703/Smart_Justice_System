@@ -10,6 +10,7 @@ import { normalisePageText } from '../src/modules/ai/providers/pdf/page-text';
 import {
   detectObjectionDays,
   extractLegalSignals,
+  extractRulingStartDate,
   stripStrayArticleNote,
 } from '../src/modules/ai/providers/legal-signals';
 import { citySearchTerms } from '../src/modules/lawyers/city-search';
@@ -119,6 +120,11 @@ describe('legal signals and deadlines', () => {
     ).toBe(30);
     expect(detectObjectionDays('من تاريخ تسلم الحكم خلال ١٥ يوماً')).toBe(15);
     expect(detectObjectionDays('استئناف خلال ستين يوما')).toBe(60);
+    expect(detectObjectionDays('حق الاعتراض خلال ثلاءثين يوما')).toBe(30);
+    const starts = extractRulingStartDate('تاريخ الحكم 12 ربيع الأول 1447');
+    expect(starts).not.toBeNull();
+    expect(starts!.getUTCFullYear()).toBeLessThan(2026);
+    expect(extractRulingStartDate('يجوز الاعتراض خلال ثلاثين يوما')).toBeNull();
     expect(stripStrayArticleNote('المادة غير مذكورة. حكمت المحكمة بالبراءة.')).toBe(
       'حكمت المحكمة بالبراءة.',
     );
@@ -161,5 +167,7 @@ describe('guide fallback and direct questions', () => {
     const fallback = fallbackGuideTurn('missing_domains');
     expect(fallback.needsClarification).toBe(false);
     expect(fallback.guidance).toMatch(/[\u0600-\u06FF]/);
+    expect(fallback.guidance).not.toContain('خارج ما أستطيع');
+    expect(fallback.uncertainty).toContain('ليس حكماً');
   });
 });

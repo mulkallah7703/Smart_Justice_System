@@ -29,6 +29,8 @@ export class LocalOcrProvider implements OcrProvider, OnModuleDestroy {
 
   private worker: Worker | null = null;
   private initPromise: Promise<Worker> | null = null;
+  /** One recognise at a time: the header whitelist must not interleave. */
+  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly configService: ConfigService<AppConfig, true>) {}
 
@@ -41,6 +43,19 @@ export class LocalOcrProvider implements OcrProvider, OnModuleDestroy {
   }
 
   async recognise(input: OcrPageInput): Promise<OcrPageResult> {
+    return this.enqueue(() => this.recogniseQueued(input));
+  }
+
+  private enqueue<T>(task: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(task, task);
+    this.queue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  private async recogniseQueued(input: OcrPageInput): Promise<OcrPageResult> {
     if (!Buffer.isBuffer(input.image) || input.image.byteLength === 0) {
       throw ocrFailed();
     }
@@ -57,6 +72,7 @@ export class LocalOcrProvider implements OcrProvider, OnModuleDestroy {
         });
       } else {
         await worker.setParameters({
+          tessedit_char_whitelist: '',
           tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
         });
       }
@@ -64,9 +80,6 @@ export class LocalOcrProvider implements OcrProvider, OnModuleDestroy {
         worker.recognize(input.image),
         ocrTimeoutMs,
       );
-      if (input.pass === 'header-digits') {
-        await worker.setParameters({ tessedit_char_whitelist: '' });
-      }
 
       const text = recognised.data.text.replace(/\r\n?/g, '\n').trim();
       const confidence =
@@ -91,6 +104,10 @@ export class LocalOcrProvider implements OcrProvider, OnModuleDestroy {
         throw error;
       }
       throw ocrFailed();
+    } finally {
+      if (input.pass === 'header-digits') {
+        await worker.setParameters({ tessedit_char_whitelist: '' }).catch(() => undefined);
+      }
     }
   }
 

@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { AiRetrievalService } from '../src/modules/ai/ai-retrieval.service';
+import { rewriteArabicLegalQuery } from '../src/modules/ai/providers/ruling-grounding';
 import { AI_PIPELINE_VERSION } from '../src/modules/ai/ai.constants';
 import { MockEmbeddingProvider } from '../src/modules/ai/providers/mock/mock-embedding.provider';
 import { chunkIdToPointId } from '../src/modules/ai/vector/point-id';
@@ -457,6 +458,57 @@ describe('AiRetrievalService', () => {
       'ruling-missed',
     );
     expect(result.results[0]!.text).toContain('حضانة الأب');
+  });
+
+  it('keeps an unscoped query on the highest-scoring case', async () => {
+    const query = 'لمن الحضانة؟';
+    const vector = (
+      await embedding.embed({ texts: [rewriteArabicLegalQuery(query)] })
+    ).vectors[0]!;
+    const other = (await embedding.embed({ texts: ['تفتيش تجاري'] })).vectors[0]!;
+    await store.upsert([
+      {
+        id: chunkIdToPointId('custody'),
+        vector,
+        payload: basePayload({
+          chunkId: 'custody',
+          userId: 'user-a',
+          documentId: 'doc-custody',
+        }),
+      },
+      {
+        id: chunkIdToPointId('commercial'),
+        vector: other,
+        payload: basePayload({
+          chunkId: 'commercial',
+          userId: 'user-a',
+          documentId: 'doc-commercial',
+          chunkIndex: 2,
+        }),
+      },
+    ]);
+    prisma.document.findMany.mockResolvedValue([
+      { id: 'doc-custody', caseId: 'case-custody' },
+      { id: 'doc-commercial', caseId: 'case-commercial' },
+    ]);
+    prisma.documentChunk.findMany.mockImplementation(async (args) => {
+      const allowed = args.where.document.id.in as string[];
+      expect(allowed).toEqual(['doc-custody']);
+      if (args.select?.id && !args.where?.id) {
+        return [{ id: 'custody' }];
+      }
+      return [
+        chunkRow('custody', 'منطوق الحكم: حكمت المحكمة بحضانة الأب', {
+          documentId: 'doc-custody',
+        }),
+      ];
+    });
+
+    const result = await service.retrieve('user-a', { query });
+    expect(result.results.map((item) => item.provenance.documentId)).toEqual([
+      'doc-custody',
+    ]);
+    expect(result.results.some((item) => item.text.includes('500,000'))).toBe(false);
   });
 
   it('returns nothing when the case filter matches no owned document', async () => {

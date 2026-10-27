@@ -130,5 +130,165 @@ export const detectObjectionDays = (text: string): number | null => {
       return days;
     }
   }
+  // OCR inserts an extra alef or hamza: ثلاءثين → ثلاثين.
+  const bare = stripOptionalLetters(folded);
+  if (bare.includes('يوم')) {
+    for (const [word, days] of WORD_DAYS) {
+      const bareWord = stripOptionalLetters(foldRulingText(word));
+      if (bareWord.length >= 4 && bare.includes(bareWord)) {
+        return days;
+      }
+    }
+  }
   return null;
+};
+
+const stripOptionalLetters = (value: string): string =>
+  value.replace(/[اأإآءئ]/g, '');
+
+const HIJRI_MONTH_NUMBERS: ReadonlyArray<readonly [string, number]> = [
+  ['ربيع الاول', 3],
+  ['ربيع الاخر', 4],
+  ['ربيع الثاني', 4],
+  ['جمادى الاولى', 5],
+  ['جمادى الاخره', 6],
+  ['ذو القعده', 11],
+  ['ذو الحجه', 12],
+  ['محرم', 1],
+  ['صفر', 2],
+  ['رجب', 7],
+  ['شعبان', 8],
+  ['رمضان', 9],
+  ['شوال', 10],
+];
+
+const HIJRI_DATE =
+  /(?:\d{1,2}|[٠-٩]{1,2})\s+(?:محرم|صفر|ربيع الأول|ربيع الآخر|ربيع الثاني|جمادى الأولى|جمادى الآخرة|رجب|شعبان|رمضان|شوال|ذو القعدة|ذو الحجة)\s+(?:\d{3,4}|[٠-٩]{3,4})/gu;
+
+const GREGORIAN_DATE =
+  /(?:\d{1,2}|[٠-٩]{1,2})\s+(?:يناير|فبراير|مارس|أبريل|ابريل|مايو|يونيو|يوليو|أغسطس|سبتمبر|أكتوبر|نوفمبر|ديسمبر)\s+(?:\d{4}|[٠-٩]{4})/gu;
+
+const DATE_MARKER = /تاريخ الحكم|تاريخ النطق|تسلم الحكم|من تاريخ/u;
+
+/** Civil (Kuwaiti) Hijri day to a Gregorian UTC date. */
+const hijriToGregorian = (year: number, month: number, day: number): Date => {
+  const julian =
+    Math.floor((11 * year + 3) / 30) +
+    354 * year +
+    30 * month -
+    Math.floor((month - 1) / 2) +
+    day +
+    1948440 -
+    385;
+  const z = Math.floor(julian + 0.5);
+  const alpha = Math.floor((z - 1867216.25) / 36524.25);
+  const a = z + 1 + alpha - Math.floor(alpha / 4);
+  const b = a + 1524;
+  const c = Math.floor((b - 122.1) / 365.25);
+  const d = Math.floor(365.25 * c);
+  const e = Math.floor((b - d) / 30.6001);
+  const gregorianDay = b - d - Math.floor(30.6001 * e);
+  const gregorianMonth = e < 14 ? e - 1 : e - 13;
+  const gregorianYear = gregorianMonth > 2 ? c - 4716 : c - 4715;
+  return new Date(Date.UTC(gregorianYear, gregorianMonth - 1, gregorianDay));
+};
+
+const monthNumber = (name: string): number | null => {
+  const folded = foldRulingText(name);
+  const match = [...HIJRI_MONTH_NUMBERS]
+    .sort((left, right) => right[0].length - left[0].length)
+    .find(([label]) => folded.includes(label));
+  return match ? match[1] : null;
+};
+
+const dateFromHijriPhrase = (phrase: string): Date | null => {
+  const folded = foldRulingText(phrase);
+  const parts = folded.match(/(\d{1,2})\s+(.+?)\s+(\d{3,4})/u);
+  if (!parts) {
+    return null;
+  }
+  const month = monthNumber(parts[2]!);
+  if (!month) {
+    return null;
+  }
+  return hijriToGregorian(Number(parts[3]), month, Number(parts[1]));
+};
+
+const dateFromNumeric = (day: number, month: number, year: number): Date | null => {
+  if (month < 1 || month > 12 || day < 1 || day > 30) {
+    return null;
+  }
+  if (year >= 1300 && year < 1600) {
+    return hijriToGregorian(year, month, day);
+  }
+  if (year >= 1900 && year < 2200) {
+    return new Date(Date.UTC(year, month - 1, day));
+  }
+  return null;
+};
+
+/**
+ * Ruling or notification date the objection window is counted from.
+ * Returns null when the text does not state a date — callers must not
+ * substitute the analysis clock.
+ */
+export const extractRulingStartDate = (text: string): Date | null => {
+  const ascii = toAsciiDigits(text);
+  const candidates: Array<{ index: number; date: Date }> = [];
+  for (const match of ascii.matchAll(HIJRI_DATE)) {
+    const date = dateFromHijriPhrase(match[0]);
+    if (date) {
+      candidates.push({ index: match.index ?? 0, date });
+    }
+  }
+  for (const match of ascii.matchAll(GREGORIAN_DATE)) {
+    const folded = foldRulingText(match[0]);
+    const parts = folded.match(/(\d{1,2})\s+(.+?)\s+(\d{4})/u);
+    const months = [
+      'يناير',
+      'فبراير',
+      'مارس',
+      'ابريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'اغسطس',
+      'سبتمبر',
+      'اكتوبر',
+      'نوفمبر',
+      'ديسمبر',
+    ];
+    const month = parts
+      ? months.findIndex((name) => foldRulingText(parts[2]!).includes(name)) + 1
+      : 0;
+    if (parts && month > 0) {
+      candidates.push({
+        index: match.index ?? 0,
+        date: new Date(Date.UTC(Number(parts[3]), month - 1, Number(parts[1]))),
+      });
+    }
+  }
+  for (const match of ascii.matchAll(/(\d{1,2})\/(\d{1,2})\/(\d{3,4})/g)) {
+    const date = dateFromNumeric(Number(match[1]), Number(match[2]), Number(match[3]));
+    if (date) {
+      candidates.push({ index: match.index ?? 0, date });
+    }
+  }
+  if (candidates.length === 0) {
+    return null;
+  }
+  let best = candidates[0]!;
+  let bestScore = -1;
+  for (const candidate of candidates) {
+    const window = ascii.slice(
+      Math.max(0, candidate.index - 48),
+      candidate.index + 48,
+    );
+    const score = DATE_MARKER.test(window) ? 2 : 1;
+    if (score > bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  }
+  return best.date;
 };

@@ -159,20 +159,22 @@ export const arabicScannedPdf = (): Buffer | null => {
 };
 
 const wrapArabic = (text: string, width: number): string[] => {
-  const words = text.split(/\s+/).filter((word) => word.length > 0);
   const lines: string[] = [];
-  let current = '';
-  for (const word of words) {
-    const next = current ? `${current} ${word}` : word;
-    if (next.length > width && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = next;
+  for (const paragraph of text.split('\n')) {
+    const words = paragraph.split(/\s+/).filter((word) => word.length > 0);
+    let current = '';
+    for (const word of words) {
+      const next = current ? `${current} ${word}` : word;
+      if (next.length > width && current) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = next;
+      }
     }
-  }
-  if (current) {
-    lines.push(current);
+    if (current) {
+      lines.push(current);
+    }
   }
   return lines;
 };
@@ -184,7 +186,8 @@ export const rulingImagePdf = (text: string): Buffer | null => {
     return null;
   }
   const width = 2480;
-  const height = 900;
+  const lines = wrapArabic(text, 70);
+  const height = Math.max(900, 120 + lines.length * 68);
   const canvas = createCanvas(width, height);
   const context = canvas.getContext('2d');
   context.fillStyle = '#ffffff';
@@ -193,7 +196,6 @@ export const rulingImagePdf = (text: string): Buffer | null => {
   context.font = `56px ${family}`;
   context.direction = 'rtl';
   context.textAlign = 'right';
-  const lines = wrapArabic(text, 70);
   lines.forEach((line, index) => {
     context.fillText(line, width - 48, 90 + index * 68);
   });

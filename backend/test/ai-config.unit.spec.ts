@@ -127,6 +127,8 @@ describe('AI configuration', () => {
       'ocrTimeoutMs',
       'ocrLangPath',
       'ocrLanguages',
+      'ocrTessdata',
+      'ocrConcurrency',
       'chunkMaxChars',
       'chunkOverlap',
       'embeddingMode',

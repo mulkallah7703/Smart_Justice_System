@@ -43,12 +43,12 @@ const ARABIC_CHAR = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70
 /** Keeps one line unless both scripts are present, in which case each gets a line. */
 const ocrLines = (text: string): readonly { text: string; arabic: boolean }[] => {
   const hasArabic = ARABIC_CHAR.test(text);
-  const hasLatin = /[A-Za-z]/.test(text);
+  const hasLatin = /[A-Za-z0-9]/.test(text);
   if (!hasArabic || !hasLatin) {
     return [{ text, arabic: hasArabic }];
   }
   const arabic = text
-    .replace(/[A-Za-z][A-Za-z0-9 .'-]*/g, ' ')
+    .replace(/[A-Za-z0-9][A-Za-z0-9 .:'/-]*/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   const latin = text.replace(/[^\x00-\x7F]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -65,18 +65,28 @@ export const renderTextPng = (
 ): Buffer => {
   ensureOcrFonts();
   const lines = text.length === 0 ? [] : ocrLines(text);
-  const width = options.width ?? 1400;
-  const fontSize = options.fontSize ?? 64;
-  const height = options.height ?? Math.max(280, lines.length * (fontSize + 48) + 40);
+  const width = options.width ?? 1000;
+  const fontSize = options.fontSize ?? 72;
+  const lineGap = 170;
+  const height = options.height ?? Math.max(280, 80 + lines.length * lineGap);
   const canvas = createCanvas(width, height);
   const context = canvas.getContext('2d');
   context.fillStyle = '#ffffff';
   context.fillRect(0, 0, width, height);
   context.fillStyle = '#000000';
-  context.direction = 'ltr';
   lines.forEach((line, index) => {
-    context.font = `${fontSize}px ${line.arabic ? arabicFamily : latinFamily}`;
-    context.fillText(line.text, 48, 48 + fontSize + index * (fontSize + 36));
+    const y = 90 + index * lineGap;
+    if (line.arabic) {
+      context.font = `${fontSize}px ${arabicFamily}`;
+      context.direction = 'rtl';
+      context.textAlign = 'right';
+      context.fillText(line.text, width - 40, y);
+    } else {
+      context.font = `${Math.round(fontSize * 1.5)}px ${latinFamily}`;
+      context.direction = 'ltr';
+      context.textAlign = 'left';
+      context.fillText(line.text.replace(/^[\s:.,-]+/, ''), 40, y);
+    }
   });
   return Buffer.from(canvas.toBuffer('image/png'));
 };

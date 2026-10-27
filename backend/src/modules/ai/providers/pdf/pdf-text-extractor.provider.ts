@@ -8,7 +8,12 @@ import {
   OCR_PROVIDER,
   type OcrProvider,
 } from '../ocr-provider.interface';
-import { cropHeaderPng, mergeHeaderReading, prepareOcrPng } from '../ocr/ocr-image';
+import {
+  cropHeaderPng,
+  DIGITS_UNVERIFIED,
+  prepareOcrPng,
+  reconcileHeaderDigits,
+} from '../ocr/ocr-image';
 import type {
   DocumentSource,
   ExtractedDocument,
@@ -61,45 +66,54 @@ export class PdfTextExtractor implements TextExtractor {
 
     const ai = this.configService.get('ai', { infer: true });
     const layerPages = await readPdfPages(source.bytes, ai.pdfMaxPages);
-    const pages: ExtractedPage[] = [];
+    const pages: ExtractedPage[] = new Array(layerPages.length);
     let ocrEngine: string | null = null;
+    let cursor = 0;
+    let settled = 0;
+    const concurrency = Math.max(1, Math.min(4, ai.ocrConcurrency || 2));
 
-    // Sequential: OCR is CPU-heavy and unbounded Promise.all would contend
-    // for memory with large rendered pages.
-    for (const layer of layerPages) {
-      const textLayer = hasUsableText(layer.text)
-        ? this.textLayerPage(source.documentId, layer)
-        : null;
-      const corrupted =
-        textLayer !== null && assessArabicTextLayer(textLayer.text).corrupted;
-
-      if (textLayer && !corrupted) {
-        pages.push(textLayer);
-        await source.onPageSettled?.(pages.length, layerPages.length);
-        continue;
-      }
-
-      try {
-        const recognised = await this.recognisePdfPage(
-          source,
-          layer.pageNumber,
-          ai.ocrDpi,
-          ai.ocrMaxPixels,
-        );
-        ocrEngine = recognised.engine;
-        pages.push(
-          textLayer
-            ? this.preferExtraction(textLayer, recognised.page)
-            : recognised.page,
-        );
-      } catch (error) {
-        if (!textLayer) {
-          throw error;
+    const runSlot = async (): Promise<void> => {
+      for (;;) {
+        const index = cursor;
+        cursor += 1;
+        if (index >= layerPages.length) {
+          return;
         }
-        pages.push(textLayer);
+        const layer = layerPages[index]!;
+        const textLayer = hasUsableText(layer.text)
+          ? this.textLayerPage(source.documentId, layer)
+          : null;
+        const corrupted =
+          textLayer !== null && assessArabicTextLayer(textLayer.text).corrupted;
+
+        if (textLayer && !corrupted) {
+          pages[index] = textLayer;
+        } else {
+          try {
+            const recognised = await this.recognisePdfPage(
+              source,
+              layer.pageNumber,
+              ai.ocrDpi,
+              ai.ocrMaxPixels,
+            );
+            ocrEngine = recognised.engine;
+            pages[index] = textLayer
+              ? this.preferExtraction(textLayer, recognised.page)
+              : recognised.page;
+          } catch (error) {
+            if (!textLayer) {
+              throw error;
+            }
+            pages[index] = textLayer;
+          }
+        }
+        settled += 1;
+        await source.onPageSettled?.(settled, layerPages.length);
       }
-      await source.onPageSettled?.(pages.length, layerPages.length);
-    }
+    };
+
+    const slots = Math.min(concurrency, Math.max(1, layerPages.length));
+    await Promise.all(Array.from({ length: slots }, () => runSlot()));
 
     return {
       documentId: source.documentId,
@@ -185,8 +199,27 @@ export class PdfTextExtractor implements TextExtractor {
       }
     }
 
+    let merged = reconcileHeaderDigits(recognised.text, headerText);
+    if (merged.digitsUnverified) {
+      try {
+        const confirm = await this.ocr.recognise({
+          image: await cropHeaderPng(prepared),
+          mimeType: rendered.mimeType,
+          languageHints: source.languageHints,
+          pageNumber,
+          pass: 'header-digits',
+        });
+        merged = reconcileHeaderDigits(recognised.text, headerText, confirm.text);
+      } catch {
+        merged = reconcileHeaderDigits(recognised.text, headerText);
+      }
+    }
+
     const warnings = [...recognised.warnings];
-    const text = mergeHeaderReading(recognised.text, headerText);
+    if (merged.digitsUnverified) {
+      warnings.push(DIGITS_UNVERIFIED);
+    }
+    const text = merged.text;
     return {
       engine: recognised.engine,
       page: {

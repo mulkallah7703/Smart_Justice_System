@@ -156,6 +156,10 @@ export interface AiConfig {
   ocrLangPath: string;
   /** Tesseract language codes joined with `+`, e.g. `ara+eng`. */
   ocrLanguages: string;
+  /** `best` uses tessdata_best for Arabic. `fast` keeps the smaller models. */
+  ocrTessdata: 'best' | 'fast';
+  /** Pages rendered at once. OCR itself stays serialized. Capped at 4. */
+  ocrConcurrency: number;
   /**
    * Maximum UTF-16 length of a DocumentChunk. Soft-breaks prefer paragraphs
    * and newlines; hard splits never cut surrogate pairs. Default 2000.
@@ -366,6 +370,14 @@ const parseS3 = (
     bucket: bucket as string,
     region: env.S3_REGION?.trim() || 'us-east-1',
   };
+};
+
+const parseTessdataVariant = (raw: string | undefined): 'best' | 'fast' => {
+  const value = raw?.trim().toLowerCase() || 'best';
+  if (value !== 'best' && value !== 'fast') {
+    throw new Error('AI_OCR_TESSDATA must be best or fast');
+  }
+  return value;
 };
 
 const parsePositiveInt = (
@@ -794,6 +806,11 @@ export const parseAi = (env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): AiConfig => {
     ),
     ocrLangPath: env.AI_OCR_LANG_PATH?.trim() || '.ocr-data',
     ocrLanguages: env.AI_OCR_LANGUAGES?.trim() || 'ara+eng',
+    ocrTessdata: parseTessdataVariant(env.AI_OCR_TESSDATA),
+    ocrConcurrency: Math.min(
+      4,
+      parsePositiveInt(env.AI_OCR_CONCURRENCY, 2, 'AI_OCR_CONCURRENCY'),
+    ),
     chunkMaxChars: parsePositiveInt(
       env.AI_CHUNK_MAX_CHARS,
       2000,

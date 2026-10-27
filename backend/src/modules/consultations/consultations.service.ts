@@ -14,6 +14,7 @@ import {
 import {
   consultationConflict,
   consultationInPast,
+  consultationAlreadyCancelled,
   consultationNotCancellable,
   consultationNotFound,
   consultationSlotUnavailable,
@@ -187,7 +188,7 @@ export class ConsultationsService {
       throw consultationNotFound();
     }
     if (existing.status === ConsultationStatus.CANCELLED) {
-      return this.getById(userId, consultationId);
+      throw consultationAlreadyCancelled();
     }
     if (
       existing.status !== ConsultationStatus.PENDING &&

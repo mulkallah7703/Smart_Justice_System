@@ -132,6 +132,21 @@ export class AlertsService {
       }
     }
 
+    if (input.type === 'DEADLINE' && input.caseId) {
+      const duplicate = await this.prisma.alert.findFirst({
+        where: {
+          userId: input.userId,
+          caseId: input.caseId,
+          type: 'DEADLINE',
+          body: input.body,
+        },
+        select: ALERT_SELECT,
+      });
+      if (duplicate) {
+        return mapAlert(duplicate);
+      }
+    }
+
     try {
       const created = await this.prisma.alert.create({
         data: {

@@ -201,6 +201,29 @@ describe('AlertsService', () => {
     );
   });
 
+  it('does not create a second DEADLINE alert with the same case and body', async () => {
+    const existing = alertRecord({ id: 'existing-deadline' });
+    const create = jest.fn();
+    const service = createService({
+      alert: {
+        findFirst: jest.fn().mockResolvedValue(existing),
+        create,
+      },
+    } as unknown as PrismaService);
+
+    const result = await service.create({
+      userId,
+      caseId: 'case-1',
+      type: 'DEADLINE',
+      severity: 'WARNING',
+      title: 'مهلة اعتراض',
+      body: 'رصد التحليل مهلة اعتراض مدتها 30 يوماً.',
+    });
+
+    expect(result.id).toBe(existing.id);
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('notifies the alerts gateway after a new alert is stored', async () => {
     const created = alertRecord({ id: 'new-alert' });
     const notify = jest.fn();

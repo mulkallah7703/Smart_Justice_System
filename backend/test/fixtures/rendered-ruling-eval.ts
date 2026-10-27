@@ -10,6 +10,7 @@ import { isExtractedTextPage } from '../../src/modules/ai/providers/text-extract
 
 import { createPdfTextExtractor } from '../helpers/pdf-extractor-test';
 import { answerAccuracy, RULINGS, type RulingQuestion } from './corrupted-rulings';
+import { FACTUAL_RULINGS, scoreFactualRulings } from './factual-rulings';
 import { rulingImagePdf } from './scanned-pdf';
 
 export interface RenderedRulingReport {
@@ -141,4 +142,86 @@ export const evaluateRenderedRulings = async (): Promise<RenderedRulingReport> =
     RULINGS.flatMap((ruling) => ruling.questions),
   );
   return { tessdata, ocrAccuracy, qaAccuracy, pages };
+};
+
+export interface FactualOcrReport {
+  tessdata: 'best' | 'fast' | 'missing';
+  cleanAccuracy: number;
+  ocrAccuracy: number;
+  invertedRulingCount: number;
+  deadlinesFound: number;
+  deadlineQuestions: number;
+  total: number;
+}
+
+/** Real Tesseract reading of the three synthetic rulings, scored by the grounding answerer. */
+export const evaluateFactualRulings = async (): Promise<FactualOcrReport> => {
+  const clean = scoreFactualRulings(
+    new Map(FACTUAL_RULINGS.map((ruling) => [ruling.id, ruling.clean])),
+  );
+  const fastDir = resolve('.ocr-data');
+  const bestDir = tryBestTessdata(fastDir);
+  const langPath = bestDir ?? fastDir;
+  const tessdata: FactualOcrReport['tessdata'] = bestDir
+    ? 'best'
+    : existsSync(join(fastDir, 'ara.traineddata'))
+      ? 'fast'
+      : 'missing';
+  if (tessdata === 'missing') {
+    return {
+      tessdata,
+      cleanAccuracy: clean.accuracy,
+      ocrAccuracy: 0,
+      invertedRulingCount: clean.invertedRulingCount,
+      deadlinesFound: 0,
+      deadlineQuestions: clean.deadlineQuestions,
+      total: clean.total,
+    };
+  }
+
+  const config = {
+    get: () => ({
+      ocrTimeoutMs: 180_000,
+      ocrLangPath: langPath,
+      ocrLanguages: 'ara',
+      ocrConcurrency: 2,
+    }),
+  } as unknown as ConfigService<never, true>;
+  const ocr = new LocalOcrProvider(config);
+  const extractor = createPdfTextExtractor({ ocr });
+  const texts = new Map<string, string>();
+  try {
+    for (const ruling of FACTUAL_RULINGS) {
+      const pdf = rulingImagePdf(ruling.clean);
+      if (!pdf) {
+        texts.set(ruling.id, '');
+        continue;
+      }
+      const extracted = await extractor.extract({
+        documentId: `factual-${ruling.id}`,
+        bytes: pdf,
+        mimeType: 'application/pdf',
+        languageHints: ['ar'],
+      });
+      texts.set(
+        ruling.id,
+        extracted.pages
+          .filter(isExtractedTextPage)
+          .map((page) => page.text)
+          .join('\n'),
+      );
+    }
+  } finally {
+    await ocr.onModuleDestroy();
+  }
+  const ocrScore = scoreFactualRulings(texts);
+  return {
+    tessdata,
+    cleanAccuracy: clean.accuracy,
+    ocrAccuracy: ocrScore.accuracy,
+    invertedRulingCount: ocrScore.invertedRulingCount,
+    deadlinesFound: ocrScore.deadlinesFound,
+    deadlineQuestions: ocrScore.deadlineQuestions,
+    total: ocrScore.total,
+  };
 };

@@ -415,4 +415,93 @@ describe('AiAnswerService', () => {
     expect(userPrompt).toContain('BEGIN EVIDENCE E1');
     expect(userPrompt).not.toContain('BEGIN EVIDENCE E2');
   });
+
+  it('replaces an inverted custody answer with the operative ruling', async () => {
+    const text = 'منطوق الحكم\nحكمت المحكمة بحضانة الأب.\nحق الاعتراض خلال ثلاثين يوماً';
+    retrieval.retrieve.mockResolvedValue({
+      query: 'لمن الحضانة؟',
+      results: [evidenceResult(text)],
+      retrieval: {
+        collection: 'mock',
+        embeddingModel: 'mock',
+        embeddingDimensions: 8,
+        limit: 5,
+        returned: 1,
+        droppedCount: 0,
+      },
+    });
+    jest.spyOn(llm, 'generateAnswer').mockResolvedValue({
+      text: JSON.stringify({
+        answer: 'تم رفض طلب الأب',
+        claims: [{ text: 'تم رفض طلب الأب', evidenceIds: ['E1'] }],
+        insufficientEvidence: false,
+      }),
+      model: 'mock-llm-v1',
+      promptTokens: 1,
+      completionTokens: 1,
+    });
+
+    const result = await service.answer('user-a', { query: 'لمن الحضانة؟' });
+    expect(result.answer).toContain('حضانة الأب');
+    expect(result.answer).not.toContain('رفض طلب');
+  });
+
+  it('states the objection window that is written in the evidence', async () => {
+    retrieval.retrieve.mockResolvedValue({
+      query: 'ما مهلة الاعتراض؟',
+      results: [
+        evidenceResult('حق الاعتراض على هذا الحكم خلال ثلاثين يوماً من تاريخ تسلم الحكم.'),
+      ],
+      retrieval: {
+        collection: 'mock',
+        embeddingModel: 'mock',
+        embeddingDimensions: 8,
+        limit: 5,
+        returned: 1,
+        droppedCount: 0,
+      },
+    });
+    jest.spyOn(llm, 'generateAnswer').mockResolvedValue({
+      text: JSON.stringify({
+        answer: 'لا توجد مهلة في المستند',
+        claims: [{ text: 'لا توجد مهلة', evidenceIds: ['E1'] }],
+        insufficientEvidence: false,
+      }),
+      model: 'mock-llm-v1',
+      promptTokens: 1,
+      completionTokens: 1,
+    });
+
+    const result = await service.answer('user-a', { query: 'ما مهلة الاعتراض؟' });
+    expect(result.answer).toContain('30');
+  });
+
+  it('refuses a case number that is not in the evidence', async () => {
+    retrieval.retrieve.mockResolvedValue({
+      query: 'ما رقم القضية؟',
+      results: [evidenceResult('منطوق الحكم: حكمت المحكمة برفض الدعوى.')],
+      retrieval: {
+        collection: 'mock',
+        embeddingModel: 'mock',
+        embeddingDimensions: 8,
+        limit: 5,
+        returned: 1,
+        droppedCount: 0,
+      },
+    });
+    jest.spyOn(llm, 'generateAnswer').mockResolvedValue({
+      text: JSON.stringify({
+        answer: 'رقم القضية 33337',
+        claims: [{ text: 'رقم القضية 33337', evidenceIds: ['E1'] }],
+        insufficientEvidence: false,
+      }),
+      model: 'mock-llm-v1',
+      promptTokens: 1,
+      completionTokens: 1,
+    });
+
+    const result = await service.answer('user-a', { query: 'ما رقم القضية؟' });
+    expect(result.answer).toBe('غير متأكد');
+    expect(result.insufficientEvidence).toBe(true);
+  });
 });

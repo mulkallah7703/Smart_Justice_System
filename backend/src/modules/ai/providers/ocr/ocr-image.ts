@@ -9,23 +9,72 @@ export const normalizeOcrDigits = (text: string): string =>
     .replace(/[٠-٩]/g, (digit) => String(INDIC.indexOf(digit)))
     .replace(/[۰-۹]/g, (digit) => String(EXTENDED.indexOf(digit)));
 
+/** Header digits that were not confirmed against the page body or a second pass. */
+export const DIGITS_UNVERIFIED = 'DIGITS_UNVERIFIED';
+
+export interface HeaderDigitMerge {
+  text: string;
+  /** True when a header pass proposed a number the body does not support. */
+  digitsUnverified: boolean;
+}
+
+const digitRuns = (text: string): string[] => [
+  ...(text.match(/\d{1,2}\/\d{1,2}\/\d{3,4}/g) ?? []),
+  ...(text.match(/\d{4,}/g) ?? []),
+];
+
+/** A whitelist header pass is digits and separators only. Prose is ignored. */
+const isDigitPass = (text: string): boolean =>
+  /\d/.test(text) && /^[\d\s./-]+$/.test(text);
+
 /**
- * Keeps digit runs found in a header reading when the full-page reading
- * dropped or garbled them.
+ * Accepts a header case number or date only when the page body already
+ * contains it, or a second header pass repeats it and the body has no
+ * different number of the same length. Unconfirmed header-only numbers are
+ * not appended and are marked unverified.
  */
-export const mergeHeaderReading = (pageText: string, headerText: string): string => {
+export const reconcileHeaderDigits = (
+  pageText: string,
+  headerText: string,
+  confirmText?: string,
+): HeaderDigitMerge => {
   const page = normalizeOcrDigits(pageText);
   const header = normalizeOcrDigits(headerText);
-  const runs = [
-    ...(header.match(/\d{1,2}\/\d{1,2}\/\d{3,4}/g) ?? []),
-    ...(header.match(/\d{4,}/g) ?? []),
-  ];
-  const missing = [...new Set(runs.filter((run) => !page.includes(run)))];
-  if (missing.length === 0) {
-    return page;
+  if (!isDigitPass(header)) {
+    return { text: page, digitsUnverified: false };
   }
-  return `${page}\n${missing.join(' ')}`.trim();
+  const confirm =
+    confirmText === undefined ? null : normalizeOcrDigits(confirmText);
+  const confirmRuns =
+    confirm !== null && isDigitPass(confirm) ? new Set(digitRuns(confirm)) : null;
+  const pageRuns = digitRuns(page);
+  const accepted: string[] = [];
+  let digitsUnverified = false;
+
+  for (const run of [...new Set(digitRuns(header))]) {
+    if (page.includes(run)) {
+      continue;
+    }
+    const conflicts = pageRuns.some(
+      (existing) => existing.length === run.length && existing !== run,
+    );
+    const confirmed = confirmRuns?.has(run) === true && !conflicts;
+    if (confirmed) {
+      accepted.push(run);
+      continue;
+    }
+    digitsUnverified = true;
+  }
+
+  return {
+    text: accepted.length === 0 ? page : `${page}\n${accepted.join(' ')}`.trim(),
+    digitsUnverified,
+  };
 };
+
+/** Page text plus confirmed header digits. Unconfirmed numbers are dropped. */
+export const mergeHeaderReading = (pageText: string, headerText: string): string =>
+  reconcileHeaderDigits(pageText, headerText).text;
 
 const otsuThreshold = (luminance: readonly number[]): number => {
   const hist = new Array<number>(256).fill(0);

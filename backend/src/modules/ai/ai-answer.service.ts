@@ -22,6 +22,11 @@ import {
   redactPii,
 } from './privacy/pii';
 import {
+  describeRulingFacts,
+  extractRulingFacts,
+  guardGroundedAnswer,
+} from './providers/ruling-grounding';
+import {
   LEGAL_ANSWER_RETRY_SUFFIX,
   LEGAL_ANSWER_SYSTEM_PROMPT,
   INSUFFICIENT_EVIDENCE_ANSWER_AR,
@@ -101,6 +106,9 @@ export class AiAnswerService {
     const userPrompt = buildLegalAnswerUserPrompt({
       query: body.query,
       evidence: promptEvidence,
+      facts: describeRulingFacts(
+        extractRulingFacts(promptEvidence.map((item) => item.text).join('\n')),
+      ),
     });
 
     let raw = await this.callLlm(LEGAL_ANSWER_SYSTEM_PROMPT, userPrompt);
@@ -121,10 +129,17 @@ export class AiAnswerService {
       }
     }
 
-    const response = mapAnswerResponse({
+    const guarded = guardGroundedAnswer({
+      query: body.query,
       answer: parsed.value.answer,
       claims: parsed.value.claims,
       insufficientEvidence: parsed.value.insufficientEvidence,
+      evidence: promptEvidence,
+    });
+    const response = mapAnswerResponse({
+      answer: guarded.answer,
+      claims: guarded.claims,
+      insufficientEvidence: guarded.insufficientEvidence,
       model: raw.model,
       evidenceById,
     });

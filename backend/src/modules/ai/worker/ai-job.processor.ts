@@ -11,6 +11,7 @@ import { redactPii } from '../privacy/pii';
 import {
   describeLegalSignals,
   detectObjectionDays,
+  extractRulingStartDate,
   stripStrayArticleNote,
 } from '../providers/legal-signals';
 import { AiJobsService } from '../ai-jobs.service';
@@ -246,16 +247,25 @@ export class AiJobProcessor extends WorkerHost implements OnModuleInit {
         .map((page) => page.text)
         .join('\n');
       const days = detectObjectionDays(text);
-      if (!days) {
+      const starts = extractRulingStartDate(text);
+      if (!days || !starts) {
         continue;
       }
-      const dueAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+      const label = `مهلة اعتراض ${days} يوماً`;
+      const existing = await this.prisma.deadline.findFirst({
+        where: { caseId, type: 'APPEAL', label },
+        select: { id: true },
+      });
+      if (existing) {
+        continue;
+      }
+      const dueAt = new Date(starts.getTime() + days * 24 * 60 * 60 * 1000);
       const deadline = await this.prisma.deadline.create({
         data: {
           caseId,
           type: 'APPEAL',
           dueAt,
-          label: `مهلة اعتراض ${days} يوماً`,
+          label,
         },
         select: { id: true },
       });

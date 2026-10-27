@@ -1,9 +1,23 @@
-import { evaluateRenderedRulings } from '../test/fixtures/rendered-ruling-eval';
+import {
+  evaluateFactualRulings,
+  evaluateRenderedRulings,
+} from '../test/fixtures/rendered-ruling-eval';
 
 const main = async (): Promise<void> => {
-  const report = await evaluateRenderedRulings();
-  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-  if (report.tessdata === 'missing' || report.ocrAccuracy <= 0 || report.qaAccuracy <= 0) {
+  const rendered = await evaluateRenderedRulings();
+  const factual = await evaluateFactualRulings();
+  process.stdout.write(
+    `${JSON.stringify({ rendered, factual }, null, 2)}\n`,
+  );
+  const failed =
+    rendered.tessdata === 'missing' ||
+    rendered.ocrAccuracy <= 0 ||
+    rendered.qaAccuracy <= 0 ||
+    factual.cleanAccuracy < 0.8 ||
+    factual.ocrAccuracy < 0.8 ||
+    factual.invertedRulingCount > 0 ||
+    factual.deadlinesFound < factual.deadlineQuestions;
+  if (failed) {
     process.exitCode = 1;
   }
 };
