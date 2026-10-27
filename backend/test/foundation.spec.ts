@@ -69,6 +69,16 @@ describe('env validation', () => {
     );
   });
 
+  it('trims whitespace around REDIS_URL', () => {
+    const config = validateEnv({
+      ...validEnv,
+      REDIS_URL: '  rediss://default:secret@example.upstash.io:6379\n',
+    });
+    expect(config.redisUrl).toBe(
+      'rediss://default:secret@example.upstash.io:6379',
+    );
+  });
+
   it('rejects a Redis URL that is not redis or rediss', () => {
     expect(() =>
       validateEnv({

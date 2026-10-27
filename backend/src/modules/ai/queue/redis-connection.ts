@@ -9,7 +9,7 @@ import type { ConnectionOptions } from 'bullmq';
  * either the queue or the existing rate limiting.
  */
 export const redisConnectionFromUrl = (raw: string): ConnectionOptions => {
-  const url = new URL(raw);
+  const url = new URL(raw.trim());
   const database = url.pathname.replace(/^\//, '');
   const tls = url.protocol === 'rediss:';
 

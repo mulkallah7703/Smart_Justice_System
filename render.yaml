@@ -7,13 +7,15 @@ services:
     name: sjs-api
     runtime: node
     plan: free
-    region: oregon
+    region: frankfurt
     rootDir: backend
     buildCommand: NPM_CONFIG_PRODUCTION=false npm ci && DATABASE_URL="${DATABASE_URL:-postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder}" DIRECT_URL="${DIRECT_URL:-${DATABASE_URL:-postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder}}" npx prisma generate && npm run build && npm run ocr:langdata
     startCommand: sh scripts/render-start.sh
     healthCheckPath: /health
     autoDeployTrigger: commit
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: NODE_ENV
         value: production
       - key: RUN_WORKER_IN_PROCESS

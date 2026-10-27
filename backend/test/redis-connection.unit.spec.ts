@@ -26,6 +26,19 @@ describe('redisConnectionFromUrl', () => {
     expect(options.enableReadyCheck).toBeUndefined();
   });
 
+  it('trims whitespace before parsing an Upstash URL', () => {
+    const options = redisConnectionFromUrl(
+      '  rediss://default:secret@example.upstash.io:6379\n',
+    ) as StandaloneRedisOptions;
+    expect(options).toMatchObject({
+      host: 'example.upstash.io',
+      port: 6379,
+      tls: {},
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+    });
+  });
+
   it('configures Upstash TLS for BullMQ', () => {
     const options = redisConnectionFromUrl(
       'rediss://default:secret@example.upstash.io:6379',

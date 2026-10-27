@@ -364,12 +364,13 @@ const parseDatabaseUrl = (raw: string, key = 'DATABASE_URL'): string => {
   return raw;
 };
 
-/** `redis://` for local Redis, `rediss://` for Upstash TLS. */
+/** `redis://` for local Redis, `rediss://` for Upstash TLS. Whitespace is ignored. */
 const parseRedisUrl = (raw: string): string => {
-  if (!raw.startsWith('redis://') && !raw.startsWith('rediss://')) {
+  const value = raw.trim();
+  if (!value.startsWith('redis://') && !value.startsWith('rediss://')) {
     throw new Error('REDIS_URL must start with redis:// or rediss://');
   }
-  return raw;
+  return value;
 };
 
 const parseS3 = (

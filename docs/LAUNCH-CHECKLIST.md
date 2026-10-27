@@ -311,10 +311,10 @@ Prisma stays on **5.22.0**. Apply schema changes with `npx prisma migrate deploy
    REDIS_URL=rediss://default:TOKEN@HOST.upstash.io:6379
    ```
 
-3. **Qdrant Cloud.** Create a free cluster. Copy the HTTPS URL and the API key. Collection name is `legal_chunks_v1`.
+3. **Qdrant Cloud.** Create a free cluster. Copy the HTTPS URL and the API key. Collection name is `legal_chunks_v1`. The API creates that collection and its payload indexes on an empty cluster, and does the same work again without error on the next boot. Use the dashboard URL as-is: an `https` URL with `:443`, or with no port, connects on port 443. A local Qdrant URL stays `http://127.0.0.1:6333`. `/health/ready` calls `/readyz` with the `api-key` header.
 
    ```
-   AI_QDRANT_URL=https://CLUSTER.region.cloud.qdrant.io:6333
+   AI_QDRANT_URL=https://CLUSTER.region.aws.cloud.qdrant.io:443
    AI_QDRANT_API_KEY=the-cluster-key
    AI_QDRANT_COLLECTION=legal_chunks_v1
    ```
@@ -335,7 +335,7 @@ Prisma stays on **5.22.0**. Apply schema changes with `npx prisma migrate deploy
 
 ### Render (API)
 
-`render.yaml` at the repo root describes one free Node web service named `sjs-api` (`rootDir: backend`, region `oregon`, health check `/health`). It does not create Render Postgres or Render Key Value.
+`render.yaml` at the repo root describes one free Node web service named `sjs-api` (`rootDir: backend`, region `frankfurt`, Node `22` via `NODE_VERSION`, health check `/health`). It does not create Render Postgres or Render Key Value. A service already created in another region stays there; region is fixed for the life of that service.
 
 1. Push this branch (or `main` after merge). In the Render dashboard: New → Blueprint, select the repository, and apply `render.yaml`. Connect auto-deploy to the branch you intend to run. The file sets `autoDeployTrigger: commit`, so Render deploys that connected branch.
 2. Fill every `sync: false` variable in the dashboard before the first successful deploy. Render injects them at build and at runtime. Do not commit the values. Do not set `PORT`; Render sets it (often `10000`). The process already listens on `0.0.0.0`.

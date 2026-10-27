@@ -9,6 +9,7 @@ import {
   aiVectorStoreError,
 } from '../ai.errors';
 
+import { qdrantClientOptions } from './qdrant-endpoint';
 import type {
   VectorSearchHit,
   VectorSearchInput,
@@ -52,11 +53,7 @@ export class QdrantVectorStore implements VectorStore, OnModuleInit {
     this.dimensions = ai.embeddingDimensions;
     this.enabled = ai.vectorStoreMode === 'qdrant';
     this.client = ai.qdrantUrl
-      ? new QdrantClient({
-          url: ai.qdrantUrl,
-          apiKey: ai.qdrantApiKey ?? undefined,
-          checkCompatibility: false,
-        })
+      ? new QdrantClient(qdrantClientOptions(ai.qdrantUrl, ai.qdrantApiKey))
       : null;
   }
 
@@ -72,26 +69,23 @@ export class QdrantVectorStore implements VectorStore, OnModuleInit {
       throw aiVectorStoreError();
     }
     try {
-      const exists = await this.client.collectionExists(this.collection);
-      if (exists.exists) {
-        const info = await this.client.getCollection(this.collection);
-        const vectors = info.config?.params?.vectors;
-        const size =
-          typeof vectors === 'object' &&
-          vectors !== null &&
-          'size' in vectors
-            ? Number((vectors as { size: number }).size)
-            : null;
-        if (size !== null && size !== this.dimensions) {
-          throw aiEmbeddingDimensionMismatch();
-        }
+      if (await this.collectionPresent()) {
+        await this.assertDimensions();
       } else {
-        await this.client.createCollection(this.collection, {
-          vectors: {
-            size: this.dimensions,
-            distance: this.distance,
-          },
-        });
+        try {
+          await this.client.createCollection(this.collection, {
+            timeout: 60,
+            vectors: {
+              size: this.dimensions,
+              distance: this.distance,
+            },
+          });
+        } catch (error) {
+          if (!this.isAlreadyExistsError(error)) {
+            throw error;
+          }
+        }
+        await this.assertDimensions();
       }
 
       await this.ensureFilterIndexes();
@@ -107,8 +101,10 @@ export class QdrantVectorStore implements VectorStore, OnModuleInit {
   }
 
   /**
-   * Idempotent. Qdrant Cloud rejects filtered search without indexes whose
-   * schema matches the stored payload types (pipelineVersion is an integer).
+   * Idempotent. A fresh cluster has no `legal_chunks_v1`. A second boot, or
+   * the in-process worker starting after the API, must see the same collection
+   * and indexes and continue. Qdrant Cloud rejects filtered search without
+   * indexes whose schema matches the payload (pipelineVersion is an integer).
    */
   private async ensureFilterIndexes(): Promise<void> {
     if (!this.client) {
@@ -116,25 +112,19 @@ export class QdrantVectorStore implements VectorStore, OnModuleInit {
     }
     for (const index of QdrantVectorStore.FILTER_INDEXES) {
       try {
-        await this.client.createPayloadIndex(this.collection, {
-          wait: true,
-          field_name: index.field,
-          field_schema: index.schema,
-        });
+        await this.createIndex(index.field, index.schema);
       } catch (error) {
-        if (this.isAlreadyExistsIndexError(error)) {
+        if (this.isAlreadyExistsError(error)) {
           continue;
         }
-        // Wrong schema left from an earlier run — drop and recreate.
+        if (!this.isSchemaConflict(error)) {
+          throw error;
+        }
+        await this.client.deletePayloadIndex(this.collection, index.field);
         try {
-          await this.client.deletePayloadIndex(this.collection, index.field);
-          await this.client.createPayloadIndex(this.collection, {
-            wait: true,
-            field_name: index.field,
-            field_schema: index.schema,
-          });
+          await this.createIndex(index.field, index.schema);
         } catch (retryError) {
-          if (this.isAlreadyExistsIndexError(retryError)) {
+          if (this.isAlreadyExistsError(retryError)) {
             continue;
           }
           throw retryError;
@@ -143,14 +133,69 @@ export class QdrantVectorStore implements VectorStore, OnModuleInit {
     }
   }
 
-  private isAlreadyExistsIndexError(error: unknown): boolean {
+  private async collectionPresent(): Promise<boolean> {
+    if (!this.client) {
+      return false;
+    }
+    try {
+      const result = await this.client.collectionExists(this.collection);
+      if (typeof result === 'boolean') {
+        return result;
+      }
+      return Boolean(result?.exists);
+    } catch (error) {
+      if (this.isNotFound(error)) {
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  private async assertDimensions(): Promise<void> {
+    if (!this.client) {
+      return;
+    }
+    const info = await this.client.getCollection(this.collection);
+    const vectors = info.config?.params?.vectors;
+    const size =
+      typeof vectors === 'object' && vectors !== null && 'size' in vectors
+        ? Number((vectors as { size: number }).size)
+        : null;
+    if (size !== null && size !== this.dimensions) {
+      throw aiEmbeddingDimensionMismatch();
+    }
+  }
+
+  private createIndex(
+    field: string,
+    schema: 'keyword' | 'integer',
+  ): Promise<unknown> {
+    if (!this.client) {
+      return Promise.resolve();
+    }
+    return this.client.createPayloadIndex(this.collection, {
+      wait: true,
+      field_name: field,
+      field_schema: schema,
+    });
+  }
+
+  private errorText(error: unknown): string {
     const message = error instanceof Error ? error.message : String(error);
-    const nested = JSON.stringify(
-      (error as { data?: unknown })?.data ?? '',
-    );
-    return /already exists|already present|duplicate/i.test(
-      `${message} ${nested}`,
-    );
+    const nested = JSON.stringify((error as { data?: unknown })?.data ?? '');
+    return `${message} ${nested}`;
+  }
+
+  private isAlreadyExistsError(error: unknown): boolean {
+    return /already exists|already present|duplicate/i.test(this.errorText(error));
+  }
+
+  private isNotFound(error: unknown): boolean {
+    return /Unexpected Response: 404|not found/i.test(this.errorText(error));
+  }
+
+  private isSchemaConflict(error: unknown): boolean {
+    return /schema|wrong type|field type|incompatible/i.test(this.errorText(error));
   }
 
   async upsert(points: readonly VectorUpsertPoint[]): Promise<void> {
