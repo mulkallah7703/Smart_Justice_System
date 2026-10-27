@@ -31,6 +31,8 @@ export interface VectorSearchFilters {
   trust: 'TRUSTED';
   pipelineVersion: number;
   embeddingModel: string;
+  /** When set, only these documents are eligible. Empty means no hits. */
+  documentIds?: readonly string[];
 }
 
 export interface VectorSearchInput {

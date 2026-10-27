@@ -7,6 +7,7 @@ import { isMockApiMode } from '../../shared/api/mode';
 import type {
   BackendCase,
   BackendCaseDetail,
+  BackendCaseType,
   FrontendCase,
   FrontendCaseDetail,
 } from './cases.types';
@@ -77,6 +78,33 @@ const mockCaseDetails = (): Record<string, FrontendCaseDetail> => {
       deadlines: [],
     },
   };
+};
+
+export const createLegalCase = async (input: {
+  type: BackendCaseType;
+}): Promise<FrontendCaseDetail> => {
+  if (isMockApiMode()) {
+    await wait(200);
+    return {
+      id: `case-${Date.now()}`,
+      title: ar.legalFile.caseTypes[input.type],
+      subtitle: '',
+      caseNumber: '',
+      status: ar.legalFile.caseStatus.PENDING,
+      statusVariant: 'pending',
+      accent: 'warning',
+      footer: null,
+      notes: null,
+      hearings: [],
+      deadlines: [],
+    };
+  }
+
+  const record = await apiRequest<BackendCaseDetail>(endpoints.legalFile.cases, {
+    method: 'POST',
+    body: { type: input.type },
+  });
+  return mapBackendCaseDetail(record);
 };
 
 export const getLegalCases = async (): Promise<FrontendCase[]> => {

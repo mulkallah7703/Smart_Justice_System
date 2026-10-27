@@ -7,7 +7,7 @@ import {
   retrieveAdvisorEvidence,
 } from './advisorApi';
 import { mapClaimsToFindings } from './mapAdvisor';
-import { saveAdvisorAnswer } from './advisorSession';
+import { loadAdvisorScope, saveAdvisorAnswer } from './advisorSession';
 
 import type {
   AdvisorAnswerView,
@@ -47,9 +47,10 @@ export const useAdvisorQuestion = (
 
     try {
       // Evidence retrieve then answer — answer re-retrieves server-side.
-      await retrieveAdvisorEvidence(trimmed);
+      const scope = loadAdvisorScope(jobId) ?? undefined;
+      await retrieveAdvisorEvidence(trimmed, scope);
       setPhase('answering');
-      const result = await answerAdvisorQuery(trimmed);
+      const result = await answerAdvisorQuery(trimmed, scope);
       setAnswer(result);
       saveAdvisorAnswer(jobId, result);
       setPhase('done');

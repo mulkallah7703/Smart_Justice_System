@@ -106,6 +106,19 @@ export class AiRetrievalService {
       throw aiRetrievalFailed();
     }
 
+    const scopedDocumentIds = await this.resolveDocumentScope(userId, body);
+    if (scopedDocumentIds && scopedDocumentIds.length === 0) {
+      return mapRetrieveResponse({
+        query: body.query,
+        results: [],
+        collection: this.vectors.collection,
+        embeddingModel: embedModel,
+        embeddingDimensions: ai.embeddingDimensions,
+        limit,
+        droppedCount: 0,
+      });
+    }
+
     let hits: readonly VectorSearchHit[];
     try {
       hits = await this.vectors.search({
@@ -117,6 +130,7 @@ export class AiRetrievalService {
           trust: 'TRUSTED',
           pipelineVersion: AI_PIPELINE_VERSION,
           embeddingModel: embedModel,
+          ...(scopedDocumentIds ? { documentIds: scopedDocumentIds } : {}),
         },
       });
     } catch (error) {
@@ -153,6 +167,8 @@ export class AiRetrievalService {
           document: {
             userId,
             deletedAt: null,
+            ...(scopedDocumentIds ? { id: { in: [...scopedDocumentIds] } } : {}),
+            ...(body.caseId ? { caseId: body.caseId } : {}),
           },
         },
         select: {
@@ -211,6 +227,33 @@ export class AiRetrievalService {
       limit,
       droppedCount,
     });
+  }
+
+  /**
+   * Ownership check. `undefined` means the caller did not narrow the search.
+   * An empty array means the filter matches nothing the caller owns.
+   */
+  private async resolveDocumentScope(
+    userId: string,
+    body: RetrieveQueryDto,
+  ): Promise<readonly string[] | undefined> {
+    if (!body.caseId && !body.documentIds) {
+      return undefined;
+    }
+    if (body.documentIds && body.documentIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.prisma.document.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        ...(body.caseId ? { caseId: body.caseId } : {}),
+        ...(body.documentIds ? { id: { in: body.documentIds } } : {}),
+      },
+      select: { id: true },
+    });
+    return rows.map((row) => row.id);
   }
 
   private dedupeByChunkId(

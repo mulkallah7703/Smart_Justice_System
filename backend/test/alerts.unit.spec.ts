@@ -199,4 +199,28 @@ describe('AlertsService', () => {
       }),
     );
   });
+
+  it('notifies the alerts gateway after a new alert is stored', async () => {
+    const created = alertRecord({ id: 'new-alert' });
+    const notify = jest.fn();
+    const service = new AlertsService(
+      {
+        alert: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue(created),
+        },
+      } as unknown as PrismaService,
+      { notify } as never,
+    );
+
+    await service.create({
+      userId,
+      type: 'DEADLINE',
+      severity: 'WARNING',
+      title: 'مهلة اعتراض',
+      body: 'ثلاثين يوماً',
+    });
+
+    expect(notify).toHaveBeenCalledWith(userId, 'new-alert');
+  });
 });

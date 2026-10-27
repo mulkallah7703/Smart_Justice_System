@@ -42,6 +42,7 @@ export class QdrantVectorStore implements VectorStore, OnModuleInit {
     { field: 'userId', schema: 'keyword' },
     { field: 'trust', schema: 'keyword' },
     { field: 'embeddingModel', schema: 'keyword' },
+    { field: 'documentId', schema: 'keyword' },
     { field: 'pipelineVersion', schema: 'integer' },
   ];
 
@@ -236,6 +237,14 @@ export class QdrantVectorStore implements VectorStore, OnModuleInit {
               key: 'embeddingModel',
               match: { value: input.filters.embeddingModel },
             },
+            ...(input.filters.documentIds
+              ? [
+                  {
+                    key: 'documentId',
+                    match: { any: [...input.filters.documentIds] },
+                  },
+                ]
+              : []),
           ],
         },
       });

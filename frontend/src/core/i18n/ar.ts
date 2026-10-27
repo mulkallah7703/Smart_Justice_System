@@ -425,6 +425,7 @@
       personal: 'أحوال شخصية',
       commercial: 'تجاري',
       labor: 'عمالي',
+      criminal: 'جزائي',
     },
     availability: {
       now: 'متاحة الآن',
@@ -644,8 +645,9 @@
     headerTitle: 'ملفي العدلي',
     tabsAria: 'أقسام الملف العدلي',
     addCase: 'إضافة قضية أو متابعة جديدة',
-    addCaseUnavailable:
-      'ربط القضايا بملفك العدلي غير متاح حالياً وسيُتاح لاحقاً. ستظهر قضاياك هنا عند ربطها بملفك العدلي.',
+    addCaseTypeLabel: 'نوع القضية',
+    addCaseSubmit: 'حفظ القضية',
+    addCaseFailed: 'تعذر إنشاء القضية. حاول مرة أخرى.',
     tabs: {
       cases: 'القضايا',
       appointments: 'المواعيد',
@@ -671,6 +673,7 @@
       COMMERCIAL: 'مطالبة مالية',
       PERSONAL: 'أحوال شخصية',
       LABOR: 'قضية عمالية',
+      CRIMINAL: 'قضية جزائية',
     },
     caseStatus: {
       PENDING: 'بانتظار جلسة',

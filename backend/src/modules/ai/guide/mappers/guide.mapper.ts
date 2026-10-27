@@ -7,6 +7,7 @@ import type { GuideSummaryResponseDto } from '../dto/guide-summary-response.dto'
 import type { GuideStage } from '../guide-stage';
 import {
   GUIDE_DOMAIN_LABELS_AR,
+  inferDurationDays,
   renderGuideReply,
   type GuideTurn,
 } from '../guide-turn';
@@ -53,6 +54,21 @@ export const mapGuideAnswer = (
   turn: mapGuideTurn(turn, clarificationCount),
 });
 
+const guideDurationDays = (turn: GuideTurn): number =>
+  turn.durationDays ??
+  inferDurationDays(
+    [turn.guidance ?? '', turn.understanding, ...turn.knownFacts].join('\n'),
+  ) ??
+  0;
+
+const guideDurationValue = (turn: GuideTurn): string => {
+  const days = guideDurationDays(turn);
+  if (days > 0) {
+    return `${days} يوماً حسب ما ورد في الحوار`;
+  }
+  return 'غير محددة — لا تتوفر مصادر موثّقة لتحديد المدد أو المواعيد';
+};
+
 const UNVERIFIED_NOTE =
   'معلومات عامة استرشادية غير مستندة إلى مصادر نظامية موثّقة، وليست حكماً قضائياً ولا استشارة قانونية ملزمة.';
 
@@ -74,8 +90,8 @@ export const mapGuideSummary = (
   authorityValue:
     turn.likelyAuthority ?? 'تُحدد بحسب تفاصيل المسألة بعد مراجعة مختص',
   durationLabel: 'المدة النظامية',
-  durationValue: 'غير محددة — لا تتوفر مصادر موثّقة لتحديد المدد أو المواعيد',
-  durationDays: 0,
+  durationValue: guideDurationValue(turn),
+  durationDays: guideDurationDays(turn),
   durationUnit: 'يوماً',
   docsTitle: 'مستندات يُستحسن تجهيزها',
   docs: turn.suggestedDocuments.map((label, index) => ({

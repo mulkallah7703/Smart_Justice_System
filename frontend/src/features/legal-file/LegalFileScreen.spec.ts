@@ -103,10 +103,8 @@ describe('LegalFileScreen — add case or follow-up action', () => {
     );
   const pathname = (): string =>
     container.querySelector('[data-testid="location"]')?.textContent ?? '';
-  const notice = (): Element[] =>
-    Array.from(container.querySelectorAll('[role="status"]')).filter((el) =>
-      el.textContent?.includes(ar.legalFile.addCaseUnavailable),
-    );
+  const caseForm = (): HTMLFormElement | null =>
+    container.querySelector('form');
 
   beforeEach(() => {
     vi.stubEnv('VITE_API_MODE', 'real');
@@ -134,36 +132,59 @@ describe('LegalFileScreen — add case or follow-up action', () => {
     expect(addButton()).toBeDefined();
   });
 
-  it('shows the honest "not available yet" notice on click instead of doing nothing', async () => {
-    stubCases([]);
+  it('opens a case form and posts the selected type', async () => {
+    const fetchMock = stubCases([]);
+    fetchMock.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if ((init?.method ?? 'GET').toUpperCase() === 'POST') {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 'case_new',
+              caseNumber: 'SJ-1',
+              type: 'CRIMINAL',
+              status: 'PENDING',
+              authority: null,
+              notes: null,
+              createdAt: '2026-01-01T00:00:00.000Z',
+              updatedAt: '2026-01-01T00:00:00.000Z',
+              hearings: [],
+              deadlines: [],
+            },
+          }),
+          { status: 201, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+      return new Response(JSON.stringify({ data: [], meta: { pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
     await render();
-    expect(notice()).toHaveLength(0);
+    expect(caseForm()).toBeNull();
 
     await act(async () => {
       addButton()!.click();
     });
-
-    expect(notice()).toHaveLength(1);
-    expect(pathname()).toBe('/legal-file');
-  });
-
-  it('never creates a case or calls a write endpoint, even on repeated clicks', async () => {
-    const fetchMock = stubCases([]);
-    await render();
-
-    for (let i = 0; i < 3; i += 1) {
-      await act(async () => {
-        addButton()!.click();
-      });
-    }
+    expect(caseForm()).not.toBeNull();
+    const select = container.querySelector('select') as HTMLSelectElement;
+    await act(async () => {
+      select.value = 'CRIMINAL';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await act(async () => {
+      caseForm()!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
     await flush();
 
-    expect(notice()).toHaveLength(1);
-    expect(container.textContent).toContain(ar.legalFile.empty.cases.title);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit | undefined];
-    expect(url).toBe(`${REAL_BASE_URL}/cases`);
-    expect((init?.method ?? 'GET').toUpperCase()).toBe('GET');
+    const post = fetchMock.mock.calls.find((call) => {
+      const init = call[1] as RequestInit | undefined;
+      return (init?.method ?? 'GET').toUpperCase() === 'POST';
+    });
+    expect(post?.[0]).toBe(`${REAL_BASE_URL}/cases`);
+    expect(JSON.parse(String((post?.[1] as RequestInit).body))).toEqual({
+      type: 'CRIMINAL',
+    });
+    expect(pathname()).toBe('/legal-file');
   });
 
   it('is a keyboard-reachable native button that is not disabled or click-blocked', async () => {

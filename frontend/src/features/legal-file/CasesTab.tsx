@@ -7,20 +7,36 @@ import EmptyState from '../../shared/components/EmptyState';
 import { ar } from '../../core/i18n/ar';
 
 import AddCaseCard from './AddCaseCard';
+import { createLegalCase } from './legalFileApi';
 
+import type { BackendCaseType } from './cases.types';
 import type { LegalCase } from './legalFile.types';
 import styles from './CasesTab.module.css';
 
 interface CasesTabProps {
   cases: LegalCase[];
   isLoading: boolean;
+  onCreated?: () => void;
 }
 
-const CasesTab = ({ cases, isLoading }: CasesTabProps): JSX.Element => {
+const CASE_TYPES: BackendCaseType[] = [
+  'RENTAL',
+  'COMMERCIAL',
+  'PERSONAL',
+  'LABOR',
+  'CRIMINAL',
+];
+
+const CasesTab = ({
+  cases,
+  isLoading,
+  onCreated,
+}: CasesTabProps): JSX.Element => {
   const navigate = useNavigate();
-  // There is no case-linking workflow yet (cases are read-only and linked server-side);
-  // the action must say so instead of creating or implying a court case.
-  const [showUnavailable, setShowUnavailable] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [caseType, setCaseType] = useState<BackendCaseType>('PERSONAL');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   return (
     <div className={styles.list}>
@@ -46,10 +62,49 @@ const CasesTab = ({ cases, isLoading }: CasesTabProps): JSX.Element => {
             />
           ))
         : null}
-      <AddCaseCard onClick={() => setShowUnavailable(true)} />
-      {showUnavailable ? (
-        <AlertBanner variant="info" message={ar.legalFile.addCaseUnavailable} />
+      <AddCaseCard onClick={() => setShowForm(true)} />
+      {showForm ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (saving) {
+              return;
+            }
+            setSaving(true);
+            setFormError(null);
+            void createLegalCase({ type: caseType })
+              .then(() => {
+                setShowForm(false);
+                onCreated?.();
+              })
+              .catch(() => {
+                setFormError(ar.legalFile.addCaseFailed);
+              })
+              .finally(() => {
+                setSaving(false);
+              });
+          }}
+        >
+          <label>
+            {ar.legalFile.addCaseTypeLabel}
+            <select
+              aria-label={ar.legalFile.addCaseTypeLabel}
+              value={caseType}
+              onChange={(event) => setCaseType(event.target.value as BackendCaseType)}
+            >
+              {CASE_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {ar.legalFile.caseTypes[type]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="submit" disabled={saving}>
+            {ar.legalFile.addCaseSubmit}
+          </button>
+        </form>
       ) : null}
+      {formError ? <AlertBanner variant="info" message={formError} /> : null}
     </div>
   );
 };

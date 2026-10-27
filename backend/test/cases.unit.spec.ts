@@ -1,7 +1,10 @@
 import { CaseStatus, CaseType, DeadlineType } from '@prisma/client';
 
+import { ExecutionContext } from '@nestjs/common';
+
 import { CasesService } from '../src/modules/cases/cases.service';
 import { caseNotFound } from '../src/modules/cases/cases.errors';
+import { CaseCreateRateLimitGuard } from '../src/modules/cases/guards/case-create-rate-limit.guard';
 import { mapCaseDetail, mapCaseListItem } from '../src/modules/cases/mappers/case.mapper';
 import { PrismaService } from '../src/shared/database/prisma.service';
 
@@ -141,6 +144,109 @@ describe('CasesService', () => {
       expect.objectContaining({
         where: { id: 'case-b', userId: 'user-a', deletedAt: null },
       }),
+    );
+  });
+
+  it('creates a criminal case for a citizen and a deadline alert', async () => {
+    const alerts = { create: jest.fn().mockResolvedValue({ id: 'alert-1' }) };
+    const createdAt = new Date('2026-10-27T00:00:00.000Z');
+    const dueAt = new Date('2026-11-26T00:00:00.000Z');
+    const prisma = {
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'user-a', role: 'CITIZEN' }),
+      },
+      case: {
+        create: jest.fn().mockResolvedValue({ id: 'case-new' }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'case-new',
+          caseNumber: 'SJ-test',
+          type: CaseType.CRIMINAL,
+          status: CaseStatus.PENDING,
+          authority: null,
+          notes: null,
+          createdAt,
+          updatedAt: createdAt,
+          hearings: [],
+          deadlines: [
+            {
+              id: 'dl-1',
+              type: DeadlineType.APPEAL,
+              dueAt,
+              label: 'مهلة اعتراض 30 يوماً',
+            },
+          ],
+        }),
+      },
+      deadline: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'dl-1' }),
+      },
+    };
+    const service = new CasesService(
+      prisma as unknown as PrismaService,
+      alerts as never,
+    );
+
+    const detail = await service.create('user-a', {
+      type: CaseType.CRIMINAL,
+      objectionDays: 30,
+    });
+
+    expect(prisma.case.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: 'user-a',
+          type: 'CRIMINAL',
+          status: 'PENDING',
+        }),
+      }),
+    );
+    expect(alerts.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-a',
+        caseId: 'case-new',
+        deadlineId: 'dl-1',
+        type: 'DEADLINE',
+      }),
+    );
+    expect(detail.type).toBe('CRIMINAL');
+    expect(detail.deadlines[0]?.type).toBe('APPEAL');
+  });
+
+  it('refuses case creation for a non-citizen', async () => {
+    const prisma = {
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'lawyer-1', role: 'LAWYER' }),
+      },
+      case: { create: jest.fn() },
+    };
+    const service = new CasesService(prisma as unknown as PrismaService);
+
+    await expect(
+      service.create('lawyer-1', { type: CaseType.CRIMINAL }),
+    ).rejects.toMatchObject({ code: 'CASE_FORBIDDEN' });
+    expect(prisma.case.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('case create rate limit', () => {
+  const context = (sub?: string): ExecutionContext =>
+    ({
+      switchToHttp: () => ({ getRequest: () => ({ user: sub ? { sub } : undefined }) }),
+    }) as unknown as ExecutionContext;
+
+  it('allows ten creates in the window and rejects the eleventh', async () => {
+    const redis = {
+      incrementWithTtl: jest.fn().mockResolvedValueOnce(10).mockResolvedValueOnce(11),
+    };
+    const guard = new CaseCreateRateLimitGuard(redis as never);
+
+    await expect(guard.canActivate(context('user-a'))).resolves.toBe(true);
+    await expect(guard.canActivate(context('user-a'))).rejects.toMatchObject({
+      code: 'CASE_RATE_LIMITED',
+    });
+    expect(redis.incrementWithTtl).toHaveBeenCalledWith(
+      'cases:create:user:user-a',
+      60,
     );
   });
 });

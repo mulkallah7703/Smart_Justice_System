@@ -1,5 +1,7 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -42,4 +44,19 @@ export class RetrieveQueryDto {
   @Min(0)
   @Max(1)
   minScore?: number;
+
+  /** Limits retrieval to one case owned by the caller. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  caseId?: string;
+
+  /** Limits retrieval to these documents after an ownership check. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  documentIds?: string[];
 }

@@ -121,6 +121,7 @@ describe('AiRetrievalService', () => {
   let store: MockVectorStore;
   let prisma: {
     documentChunk: { findMany: jest.Mock };
+    document: { findMany: jest.Mock };
   };
   let service: AiRetrievalService;
   let logSpy: jest.SpyInstance;
@@ -162,7 +163,10 @@ describe('AiRetrievalService', () => {
 
   beforeEach(async () => {
     store = new MockVectorStore(DIMS);
-    prisma = { documentChunk: { findMany: jest.fn().mockResolvedValue([]) } };
+    prisma = {
+      documentChunk: { findMany: jest.fn().mockResolvedValue([]) },
+      document: { findMany: jest.fn().mockResolvedValue([]) },
+    };
     service = new AiRetrievalService(
       prisma as never,
       configService as never,
@@ -385,6 +389,60 @@ describe('AiRetrievalService', () => {
       expect(joined).not.toContain('SECRET_CHUNK');
       expect(joined).not.toContain('SECRET_QUERY');
     }
+  });
+
+  it('keeps chunks from the requested case and drops the other case', async () => {
+    const vector = (await embedding.embed({ texts: ['حضانة'] })).vectors[0]!;
+    await store.upsert([
+      {
+        id: chunkIdToPointId('custody'),
+        vector,
+        payload: basePayload({
+          chunkId: 'custody',
+          userId: 'user-a',
+          documentId: 'doc-custody',
+        }),
+      },
+      {
+        id: chunkIdToPointId('commercial'),
+        vector,
+        payload: basePayload({
+          chunkId: 'commercial',
+          userId: 'user-a',
+          documentId: 'doc-commercial',
+          chunkIndex: 1,
+        }),
+      },
+    ]);
+    prisma.document.findMany.mockResolvedValue([{ id: 'doc-custody' }]);
+    prisma.documentChunk.findMany.mockImplementation(async (args) => {
+      const allowed = args.where.document.id.in as string[];
+      expect(allowed).toEqual(['doc-custody']);
+      expect(args.where.document.caseId).toBe('case-custody');
+      return [chunkRow('custody', 'حضانة الأب', { documentId: 'doc-custody' })];
+    });
+
+    const result = await service.retrieve('user-a', {
+      query: 'حضانة',
+      documentIds: ['doc-custody', 'doc-commercial'],
+      caseId: 'case-custody',
+    });
+
+    expect(result.results.map((item) => item.provenance.documentChunkId)).toEqual([
+      'custody',
+    ]);
+    expect(result.results[0]!.text).not.toContain('500,000');
+  });
+
+  it('returns nothing when the case filter matches no owned document', async () => {
+    prisma.document.findMany.mockResolvedValue([]);
+    const result = await service.retrieve('user-a', {
+      query: 'حضانة',
+      documentIds: ['doc-other'],
+      caseId: 'case-missing',
+    });
+    expect(result.results).toEqual([]);
+    expect(prisma.documentChunk.findMany).not.toHaveBeenCalled();
   });
 
   it('preserves score ordering across multiple hits', async () => {

@@ -1,5 +1,8 @@
 import {
+  ArrayMaxSize,
+  IsArray,
   IsNotEmpty,
+  IsOptional,
   IsString,
   MaxLength,
   MinLength,
@@ -17,4 +20,17 @@ export class AnswerQueryDto {
   @MinLength(1)
   @MaxLength(RETRIEVE_QUERY_MAX_CHARS)
   query!: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  caseId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  documentIds?: string[];
 }

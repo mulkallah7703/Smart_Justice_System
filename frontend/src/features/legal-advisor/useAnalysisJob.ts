@@ -5,8 +5,8 @@ import { ar } from '../../core/i18n/ar';
 
 import { pollAdvisorJob, resetAdvisorJobMock } from './advisorApi';
 import {
-  ADVISOR_MAX_POLL_ATTEMPTS,
-  ADVISOR_POLL_INTERVAL_MS,
+  ADVISOR_POLL_BUDGET_MS,
+  advisorPollDelayMs,
   clampAdvisorStageIndex,
   decideAdvisorPoll,
 } from './advisorPoll';
@@ -54,6 +54,7 @@ export const useAnalysisJob = (jobId: string): UseAnalysisJobResult => {
     let cancelled = false;
     let attempt = 0;
     let timeoutId = 0;
+    const startedAt = Date.now();
 
     const failToUpload = (reason?: string): void => {
       navigate('/advisor', {
@@ -65,7 +66,7 @@ export const useAnalysisJob = (jobId: string): UseAnalysisJobResult => {
     const scheduleNext = (): void => {
       timeoutId = window.setTimeout(() => {
         void tick();
-      }, ADVISOR_POLL_INTERVAL_MS);
+      }, advisorPollDelayMs(attempt));
     };
 
     const tick = async (): Promise<void> => {
@@ -90,7 +91,8 @@ export const useAnalysisJob = (jobId: string): UseAnalysisJobResult => {
         const decision = decideAdvisorPoll({
           status: result.status,
           attempt,
-          maxAttempts: ADVISOR_MAX_POLL_ATTEMPTS,
+          elapsedMs: Date.now() - startedAt,
+          budgetMs: ADVISOR_POLL_BUDGET_MS,
         });
 
         if (decision.terminal === 'DONE') {

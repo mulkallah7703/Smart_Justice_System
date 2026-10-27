@@ -9,12 +9,14 @@ interface UseLegalFileResult {
   setActiveTab: (tab: LegalFileTabId) => void;
   cases: LegalCase[];
   isLoading: boolean;
+  reloadCases: () => void;
 }
 
 export const useLegalFile = (): UseLegalFileResult => {
   const [activeTab, setActiveTab] = useState<LegalFileTabId>('cases');
   const [cases, setCases] = useState<LegalCase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -42,12 +44,13 @@ export const useLegalFile = (): UseLegalFileResult => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadToken]);
 
   return {
     activeTab,
     setActiveTab,
     cases,
     isLoading,
+    reloadCases: () => setReloadToken((value) => value + 1),
   };
 };

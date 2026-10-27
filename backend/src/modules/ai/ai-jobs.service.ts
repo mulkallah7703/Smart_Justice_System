@@ -241,6 +241,26 @@ export class AiJobsService {
     return { attempts: job.attempts, maxAttempts: job.maxAttempts };
   }
 
+  /** Raises progress inside a stage without ever showing 100 before completion. */
+  async reportProgress(
+    jobId: string,
+    stageIndex: number,
+    progress: number,
+  ): Promise<void> {
+    const bounded = Math.max(0, Math.min(99, Math.round(progress)));
+    const current = await this.prisma.aiJob.findUnique({
+      where: { id: jobId },
+      select: { progress: true },
+    });
+    if (!current || bounded <= current.progress) {
+      return;
+    }
+    await this.prisma.aiJob.update({
+      where: { id: jobId },
+      data: { stageIndex, progress: bounded },
+    });
+  }
+
   async advanceStage(jobId: string, stageIndex: number): Promise<void> {
     await this.prisma.aiJob.update({
       where: { id: jobId },

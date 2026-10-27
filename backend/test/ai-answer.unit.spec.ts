@@ -233,6 +233,64 @@ describe('AiAnswerService', () => {
     ).rejects.toMatchObject({ code: 'AI_ANSWER_INVALID' });
   });
 
+  it('forwards caseId and documentIds into retrieval', async () => {
+    retrieval.retrieve.mockResolvedValue({
+      query: 'q',
+      results: [],
+      retrieval: {
+        collection: 'mock',
+        embeddingModel: 'mock',
+        embeddingDimensions: 8,
+        limit: 5,
+        returned: 0,
+        droppedCount: 0,
+      },
+    });
+    await service.answer('user-a', {
+      query: 'ما الحكم؟',
+      caseId: 'case-custody',
+      documentIds: ['doc-custody'],
+    });
+    expect(retrieval.retrieve).toHaveBeenCalledWith(
+      'user-a',
+      expect.objectContaining({
+        caseId: 'case-custody',
+        documentIds: ['doc-custody'],
+      }),
+    );
+  });
+
+  it('clears insufficientEvidence when cited claims are returned', async () => {
+    retrieval.retrieve.mockResolvedValue({
+      query: 'rent',
+      results: [evidenceResult('Monthly rent is 5000 SAR.')],
+      retrieval: {
+        collection: 'mock',
+        embeddingModel: 'mock',
+        embeddingDimensions: 8,
+        limit: 5,
+        returned: 1,
+        droppedCount: 0,
+      },
+    });
+    jest.spyOn(llm, 'generateAnswer').mockResolvedValue({
+      text: JSON.stringify({
+        answer: 'The rent is 5000. Phone 0555123456.',
+        claims: [{ text: 'Rent is 5000', evidenceIds: ['E1'] }],
+        insufficientEvidence: true,
+      }),
+      model: 'mock-llm-v1',
+      promptTokens: 4,
+      completionTokens: 8,
+    });
+
+    const result = await service.answer('user-a', { query: 'rent' });
+    expect(result.insufficientEvidence).toBe(false);
+    expect(result.claims).toHaveLength(1);
+    expect(result.answer).not.toContain('0555123456');
+    expect(result.answer).toContain('[محذوف]');
+  });
+
   it('accepts mock insufficientEvidence when evidence exists', async () => {
     retrieval.retrieve.mockResolvedValue({
       query: MOCK_ANSWER_INSUFFICIENT,

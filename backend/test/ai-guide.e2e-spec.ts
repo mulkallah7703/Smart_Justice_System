@@ -164,21 +164,23 @@ describe('AI Legal Guide (e2e)', () => {
     expect(started.body.data.turn.clarificationQuestion).toBeTruthy();
   });
 
-  it('fails closed on malformed model output without persisting or inventing a question', async () => {
+  it('returns an Arabic fallback when model output stays malformed', async () => {
     const started = await start(ownerToken, {});
     const sessionId = started.body.data.sessionId as string;
 
-    const failed = await answer(ownerToken, {
+    const recovered = await answer(ownerToken, {
       sessionId,
       answer: 'سؤال mock-guide-malformed',
     });
-    expect(failed.status).toBe(502);
-    expect(failed.body.error.code).toBe('AI_GUIDE_FAILED');
-    expect(failed.body.data).toBeUndefined();
+    expect(recovered.status).toBe(200);
+    expect(recovered.body.data.reply).toMatch(/[\u0600-\u06FF]/);
+    expect(recovered.body.data.turn.needsClarification).toBe(false);
 
-    const stored = await prisma.aiGuideMessage.findMany({ where: { sessionId } });
-    expect(stored).toHaveLength(1);
-    expect(stored[0]!.role).toBe('ASSISTANT');
+    const stored = await prisma.aiGuideMessage.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(stored.map((row) => row.role)).toEqual(['ASSISTANT', 'USER', 'ASSISTANT']);
   });
 
   it('rejects unexpected identity fields and invalid bodies', async () => {

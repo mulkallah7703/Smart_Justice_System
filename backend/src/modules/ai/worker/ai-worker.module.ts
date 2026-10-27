@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { StorageModule } from '../../documents/storage/storage.module';
+import { AlertsCoreModule } from '../../alerts/alerts-core.module';
 import { AiModule } from '../ai.module';
 
 import { AiJobProcessor } from './ai-job.processor';
@@ -10,7 +11,7 @@ import { AiJobProcessor } from './ai-job.processor';
  * by `AppModule`, which is what keeps AI execution out of the API process.
  */
 @Module({
-  imports: [AiModule, StorageModule],
+  imports: [AiModule, StorageModule, AlertsCoreModule],
   providers: [AiJobProcessor],
 })
 export class AiWorkerModule {}

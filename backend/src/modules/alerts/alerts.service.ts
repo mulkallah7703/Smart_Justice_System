@@ -7,6 +7,7 @@ import type {
   AlertListResult,
   AlertResponseDto,
 } from './dto/alert-response.dto';
+import { AlertsGateway } from './alerts.gateway';
 import { alertFailed, alertNotFound } from './alerts.errors';
 import { mapAlert } from './mappers/alert.mapper';
 
@@ -39,7 +40,10 @@ export interface CreateAlertInput {
 export class AlertsService {
   private readonly logger = new Logger(AlertsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gateway: AlertsGateway = new AlertsGateway(),
+  ) {}
 
   async list(userId: string, query: AlertListQueryDto): Promise<AlertListResult> {
     const page = query.page ?? DEFAULT_PAGE;
@@ -146,7 +150,9 @@ export class AlertsService {
         status: 'ok',
         type: input.type,
       });
-      return mapAlert(created);
+      const mapped = mapAlert(created);
+      this.gateway.notify(input.userId, mapped.id);
+      return mapped;
     } catch {
       throw alertFailed();
     }

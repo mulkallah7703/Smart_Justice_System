@@ -1,9 +1,11 @@
-﻿import { Injectable } from '@nestjs/common';
+﻿import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../shared/database/prisma.service';
-import { caseNotFound } from './cases.errors';
+import { AlertsService } from '../alerts/alerts.service';
+import { caseForbidden, caseNotFound } from './cases.errors';
 import type { CaseListQueryDto } from './dto/case-list-query.dto';
+import type { CreateCaseDto } from './dto/create-case.dto';
 import type { CaseDetailDto, CaseListResult } from './dto/case-response.dto';
 import { mapCaseDetail, mapCaseListItem } from './mappers/case.mapper';
 
@@ -12,7 +14,67 @@ const DEFAULT_LIMIT = 10;
 
 @Injectable()
 export class CasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(CasesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly alerts?: AlertsService,
+  ) {}
+
+  async create(userId: string, input: CreateCaseDto): Promise<CaseDetailDto> {
+    const owner = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: { id: true, role: true },
+    });
+    if (!owner || owner.role !== 'CITIZEN') {
+      throw caseForbidden();
+    }
+
+    const caseNumber = `SJ-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const created = await this.prisma.case.create({
+      data: {
+        userId,
+        caseNumber,
+        type: input.type,
+        authority: input.authority ?? null,
+        notes: input.notes ?? null,
+        status: 'PENDING',
+        ...(input.objectionDays
+          ? {
+              deadlines: {
+                create: {
+                  type: 'APPEAL',
+                  dueAt: new Date(Date.now() + input.objectionDays * 24 * 60 * 60 * 1000),
+                  label: `مهلة اعتراض ${input.objectionDays} يوماً`,
+                },
+              },
+            }
+          : {}),
+      },
+      select: { id: true },
+    });
+
+    if (input.objectionDays && this.alerts) {
+      const deadline = await this.prisma.deadline.findFirst({
+        where: { caseId: created.id },
+        select: { id: true },
+      });
+      if (deadline) {
+        await this.alerts.create({
+          userId,
+          caseId: created.id,
+          deadlineId: deadline.id,
+          type: 'DEADLINE',
+          severity: 'WARNING',
+          title: 'مهلة اعتراض',
+          body: `أُنشئت مهلة اعتراض مدتها ${input.objectionDays} يوماً.`,
+        });
+      }
+    }
+
+    this.logger.log(`case created id=${created.id} type=${input.type}`);
+    return this.getById(userId, created.id);
+  }
 
   async list(userId: string, query: CaseListQueryDto): Promise<CaseListResult> {
     const page = query.page ?? DEFAULT_PAGE;

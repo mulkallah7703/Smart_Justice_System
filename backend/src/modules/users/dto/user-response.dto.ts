@@ -10,5 +10,7 @@ export interface UserMeDto {
   id: string;
   name: string;
   role: Role;
+  phone: string;
+  email: string | null;
   card: JudicialCardSummaryDto | null;
 }

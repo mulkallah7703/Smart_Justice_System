@@ -95,6 +95,7 @@ export const pollAdvisorJob = async (
 
 export const retrieveAdvisorEvidence = async (
   query: string,
+  scope?: { caseId?: string; documentIds?: string[] },
 ): Promise<BackendRetrieveResponse> => {
   if (isMockApiMode()) {
     await wait(250);
@@ -133,12 +134,19 @@ export const retrieveAdvisorEvidence = async (
 
   return apiRequest<BackendRetrieveResponse>(endpoints.advisor.retrieve, {
     method: 'POST',
-    body: { query },
+    body: {
+      query,
+      ...(scope?.caseId ? { caseId: scope.caseId } : {}),
+      ...(scope?.documentIds && scope.documentIds.length > 0
+        ? { documentIds: scope.documentIds }
+        : {}),
+    },
   });
 };
 
 export const answerAdvisorQuery = async (
   query: string,
+  scope?: { caseId?: string; documentIds?: string[] },
 ): Promise<AdvisorAnswerView> => {
   if (isMockApiMode()) {
     await wait(300);
@@ -206,7 +214,13 @@ export const answerAdvisorQuery = async (
     endpoints.advisor.answer,
     {
       method: 'POST',
-      body: { query },
+      body: {
+        query,
+        ...(scope?.caseId ? { caseId: scope.caseId } : {}),
+        ...(scope?.documentIds && scope.documentIds.length > 0
+          ? { documentIds: scope.documentIds }
+          : {}),
+      },
       timeoutMs: 60_000,
     },
   );

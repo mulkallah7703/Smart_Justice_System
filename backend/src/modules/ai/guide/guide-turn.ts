@@ -59,6 +59,8 @@ export interface GuideTurn {
   likelyAuthority: string | null;
   uncertainty: string | null;
   urgent: boolean;
+  /** Days stated in the conversation, when the user asked about a duration. */
+  durationDays: number | null;
 }
 
 export type GuideTurnParseResult =
@@ -269,6 +271,7 @@ export const parseGuideTurn = (
       likelyAuthority: authority.value,
       uncertainty: uncertainty.value,
       urgent: record.urgent === true,
+      durationDays: readDurationDays(record.durationDays),
     },
   };
 };
@@ -289,6 +292,87 @@ export const readStoredGuideTurn = (value: unknown): GuideTurn | null => {
   }
   return record as GuideTurn;
 };
+
+const readDurationDays = (value: unknown): number | null => {
+  if (typeof value !== 'number' || !Number.isInteger(value)) {
+    return null;
+  }
+  if (value < 1 || value > 3650) {
+    return null;
+  }
+  return value;
+};
+
+const DIRECT_QUESTION =
+  /كم\s+(?:المدة|تستغرق|يوم)|هل\s+أحتاج\s+(?:إلى\s+)?محام|هل\s+احتاج\s+محام|مدة\s+الاعتراض|do i need a lawyer|how long/iu;
+
+export const isDirectGuideQuestion = (text: string): boolean =>
+  DIRECT_QUESTION.test(text);
+
+const WORD_DAYS: Readonly<Record<string, number>> = {
+  ثلاثين: 30,
+  ثلاثون: 30,
+  ستين: 60,
+};
+
+export const inferDurationDays = (text: string): number | null => {
+  const digits = text.match(/(\d+)\s*يوم/u);
+  if (digits) {
+    const days = Number(digits[1]);
+    return days > 0 && days <= 3650 ? days : null;
+  }
+  for (const [word, days] of Object.entries(WORD_DAYS)) {
+    if (text.includes(`${word} يوم`) || text.includes(`${word} يوماً`)) {
+      return days;
+    }
+  }
+  return null;
+};
+
+/** A direct duration or lawyer question must not come back as another question. */
+export const forceDirectGuideAnswer = (
+  turn: GuideTurn,
+  userMessage: string,
+): GuideTurn => {
+  if (!isDirectGuideQuestion(userMessage) || !turn.needsClarification) {
+    return {
+      ...turn,
+      durationDays: turn.durationDays ?? inferDurationDays(turn.guidance ?? ''),
+    };
+  }
+  const guidance =
+    turn.guidance ??
+    'يمكنك الاستعانة بمحامٍ مرخص عندما تؤثر المسألة على حق أو ميعاد. المدة تعتمد على نوع الإجراء وتاريخ التبليغ المذكور في مستنداتك، ولا تُفترض مهلة لم ترد في نص.';
+  return {
+    ...turn,
+    needsClarification: false,
+    clarificationQuestion: null,
+    suggestedReplies: [],
+    guidance,
+    durationDays: turn.durationDays ?? inferDurationDays(`${userMessage}\n${guidance}`),
+  };
+};
+
+/** Safe Arabic turn when the model output is rejected after the single retry. */
+export const fallbackGuideTurn = (reason: string): GuideTurn => ({
+  domains: ['GENERAL'],
+  understanding: 'تعذر اعتماد مخرجات التحليل لهذه الرسالة، وهذا رد احتياطي عام.',
+  knownFacts: [],
+  missingFacts: [],
+  needsClarification: false,
+  clarificationQuestion: null,
+  suggestedReplies: [],
+  guidance:
+    reason === 'missing_domains'
+      ? 'هذا الطلب خارج ما أستطيع توجيهه كإرشاد قانوني داخل المملكة. صف الواقعة القانونية التي تريد فهمها في جملة واحدة.'
+      : 'لن أكرر السؤال السابق. لخص ما حدث والنتيجة التي تريدها في جملة واحدة، أو راجع الجهة المختصة أو محامياً مرخصاً إذا كان هناك ميعاد أو أثر على حق.',
+  nextSteps: ['صِغ سؤالك في جملة واحدة تحدد الواقعة والنتيجة المطلوبة.'],
+  suggestedDocuments: [],
+  likelyAuthority: null,
+  uncertainty: 'هذا رد احتياطي لأن التحليل لم يكتمل، وليس حكماً قضائياً.',
+  urgent: false,
+  durationDays: null,
+});
 
 /** User-visible chat text for a validated turn. */
 export const renderGuideReply = (turn: GuideTurn): string => {

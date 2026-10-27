@@ -4,6 +4,8 @@ import { ar } from '../../core/i18n/ar';
 import { ApiError, getUserFacingAdvisorError } from '../../shared/api/errors';
 
 import {
+  ADVISOR_POLL_BUDGET_MS,
+  advisorPollDelayMs,
   clampAdvisorStageIndex,
   decideAdvisorPoll,
 } from './advisorPoll';
@@ -26,6 +28,28 @@ describe('advisorPoll', () => {
     expect(
       decideAdvisorPoll({ status: 'PROCESSING', attempt: 89, maxAttempts: 90 }),
     ).toEqual({ continue: true });
+  });
+
+  it('backs off toward ten seconds and keeps polling inside a ten-minute budget', () => {
+    expect(advisorPollDelayMs(1)).toBe(2_000);
+    expect(advisorPollDelayMs(20)).toBeLessThanOrEqual(10_000);
+    expect(advisorPollDelayMs(20)).toBeGreaterThan(advisorPollDelayMs(2));
+    expect(
+      decideAdvisorPoll({
+        status: 'PROCESSING',
+        attempt: 90,
+        elapsedMs: 183_000,
+        budgetMs: ADVISOR_POLL_BUDGET_MS,
+      }),
+    ).toEqual({ continue: true });
+    expect(
+      decideAdvisorPoll({
+        status: 'PROCESSING',
+        attempt: 200,
+        elapsedMs: ADVISOR_POLL_BUDGET_MS,
+        budgetMs: ADVISOR_POLL_BUDGET_MS,
+      }),
+    ).toEqual({ continue: false, terminal: 'TIMEOUT' });
   });
 
   it('times out when attempts are exhausted', () => {

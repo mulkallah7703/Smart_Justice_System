@@ -10,6 +10,7 @@ import {
 import { getLegalCases } from '../legal-file/legalFileApi';
 
 import { startDocumentAnalysis } from './advisorApi';
+import { saveAdvisorScope } from './advisorSession';
 
 import type { FileKind, UploadedFileItem } from './advisor.types';
 
@@ -56,8 +57,15 @@ const initialMockFiles = (): UploadedFileItem[] => [
   },
 ];
 
-const parseSizeMb = (sizeLabel: string): number => {
-  const match = sizeLabel.replace(/[^\d.]/g, '');
+const ARABIC_INDIC = '٠١٢٣٤٥٦٧٨٩';
+const EXTENDED_INDIC = '۰۱۲۳۴۵۶۷۸۹';
+
+/** Parses an Arabic size label such as `٥.٠ م.ب` without dropping Indic digits. */
+export const parseSizeMb = (sizeLabel: string): number => {
+  const ascii = sizeLabel
+    .replace(/[٠-٩]/g, (digit) => String(ARABIC_INDIC.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String(EXTENDED_INDIC.indexOf(digit)));
+  const match = ascii.replace(/[^\d.]/g, '');
   const value = Number.parseFloat(match);
   return Number.isFinite(value) && value > 0 ? value : 0.1;
 };
@@ -90,6 +98,8 @@ export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
             status: 'done' as const,
             kind: document.kind,
             documentId: document.id,
+            caseId: document.caseId,
+            origin: 'library' as const,
           })),
         );
       })
@@ -167,7 +177,7 @@ export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
           },
         ]);
 
-        const upload = async (): Promise<{ documentId: string }> => {
+        const upload = async (): Promise<{ documentId: string; caseId: string | null }> => {
           if (!isDomainLive('advisor')) {
             for (let percent = 10; percent <= 100; percent += 10) {
               await new Promise<void>((resolve) => {
@@ -185,11 +195,12 @@ export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
                 ),
               );
             }
-            return { documentId: `doc-${Date.now()}-${file.name}` };
+            return { documentId: `doc-${Date.now()}-${file.name}`, caseId: null };
           }
 
           const cases = await getLegalCases();
-          if (cases.length === 0) {
+          const caseId = cases[0]?.id;
+          if (!caseId) {
             throw new ApiError(
               'CASE_NOT_FOUND',
               ar.advisor.upload.noCaseError,
@@ -205,7 +216,7 @@ export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
 
           const uploaded = await uploadCaseDocument({
             file,
-            caseId: cases[0].id,
+            caseId,
           });
 
           setFiles((current) =>
@@ -214,7 +225,7 @@ export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
             ),
           );
 
-          return { documentId: uploaded.id };
+          return { documentId: uploaded.id, caseId };
         };
 
         void upload()
@@ -227,6 +238,8 @@ export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
                       progress: 100,
                       status: 'done',
                       documentId: result.documentId,
+                      caseId: result.caseId,
+                      origin: 'session',
                     }
                   : item,
               ),
@@ -274,10 +287,24 @@ export const useDocumentAnalysis = (): UseDocumentAnalysisResult => {
     setIsAnalyzing(true);
     setErrorMessage(null);
     try {
-      const documentIds = files
-        .filter((file) => file.status === 'done' && file.documentId)
-        .map((file) => file.documentId as string);
+      const ready = files.filter(
+        (file) => file.status === 'done' && file.documentId,
+      );
+      const sessionFiles = ready.filter((file) => file.origin === 'session');
+      const chosen = sessionFiles.length > 0 ? sessionFiles : ready.slice(0, 1);
+      const documentIds = chosen.map((file) => file.documentId as string);
+      const caseIds = [
+        ...new Set(
+          chosen
+            .map((file) => file.caseId)
+            .filter((caseId): caseId is string => Boolean(caseId)),
+        ),
+      ];
       const result = await startDocumentAnalysis(documentIds);
+      saveAdvisorScope(result.jobId, {
+        documentIds,
+        caseId: caseIds.length === 1 ? caseIds[0] : undefined,
+      });
       return result.jobId;
     } catch (error: unknown) {
       setErrorMessage(getUserFacingAdvisorError(error));

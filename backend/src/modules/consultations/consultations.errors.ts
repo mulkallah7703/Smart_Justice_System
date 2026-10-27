@@ -2,6 +2,14 @@ import { HttpStatus } from '@nestjs/common';
 
 import { AppError } from '../../shared/exceptions/app-error';
 
+export const consultationNotCancellable = (): AppError =>
+  new AppError(
+    'CONSULTATION_NOT_CANCELLABLE',
+    'This consultation can no longer be cancelled',
+    'لا يمكن إلغاء هذه الاستشارة',
+    HttpStatus.CONFLICT,
+  );
+
 export const consultationNotFound = (): AppError =>
   new AppError(
     'CONSULTATION_NOT_FOUND',

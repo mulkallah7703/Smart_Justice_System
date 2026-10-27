@@ -89,6 +89,12 @@ export class MockVectorStore implements VectorStore {
       ) {
         continue;
       }
+      if (
+        filters.documentIds &&
+        !filters.documentIds.includes(payload.documentId)
+      ) {
+        continue;
+      }
 
       const score = cosineSimilarity(input.vector, point.vector);
       if (

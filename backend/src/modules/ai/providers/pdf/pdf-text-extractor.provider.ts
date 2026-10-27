@@ -16,6 +16,11 @@ import type {
   TextExtractor,
 } from '../text-extractor.interface';
 
+import {
+  ARABIC_LAYER_OCR_PREFERRED,
+  assessArabicTextLayer,
+  scoreExtractedText,
+} from './arabic-layer-quality';
 import { PDF_TEXT_VISUAL_ORDER } from './arabic-text-order';
 import { hasUsableText } from './page-text';
 import {
@@ -29,11 +34,10 @@ export { PDF_TEXT_VISUAL_ORDER };
 const RASTER_TYPES: readonly string[] = ['image/png', 'image/jpeg'];
 
 /**
- * Real text-layer extraction with local OCR fallback for pages that have no
- * usable text layer. TEXT_LAYER pages are never re-recognised. Arabic text is
- * kept in pdf.js order (no reconstruction). Trust comes from the text-quality
- * gate: readable text is `TRUSTED`; garbled text and low-confidence OCR stay
- * `REVIEW_REQUIRED`.
+ * Real text-layer extraction. Pages with no usable text are OCR'd. Arabic
+ * text layers that are readable stay as text. Layers that are presentation
+ * forms broken apart, duplicated, or watermark-polluted are OCR'd as well,
+ * and the higher quality score is kept. Arabic text is not reordered.
  */
 @Injectable()
 export class PdfTextExtractor implements TextExtractor {
@@ -62,19 +66,38 @@ export class PdfTextExtractor implements TextExtractor {
     // Sequential: OCR is CPU-heavy and unbounded Promise.all would contend
     // for memory with large rendered pages.
     for (const layer of layerPages) {
-      if (hasUsableText(layer.text)) {
-        pages.push(this.textLayerPage(source.documentId, layer));
+      const textLayer = hasUsableText(layer.text)
+        ? this.textLayerPage(source.documentId, layer)
+        : null;
+      const corrupted =
+        textLayer !== null && assessArabicTextLayer(textLayer.text).corrupted;
+
+      if (textLayer && !corrupted) {
+        pages.push(textLayer);
+        await source.onPageSettled?.(pages.length, layerPages.length);
         continue;
       }
 
-      const recognised = await this.recognisePdfPage(
-        source,
-        layer.pageNumber,
-        ai.ocrDpi,
-        ai.ocrMaxPixels,
-      );
-      ocrEngine = recognised.engine;
-      pages.push(recognised.page);
+      try {
+        const recognised = await this.recognisePdfPage(
+          source,
+          layer.pageNumber,
+          ai.ocrDpi,
+          ai.ocrMaxPixels,
+        );
+        ocrEngine = recognised.engine;
+        pages.push(
+          textLayer
+            ? this.preferExtraction(textLayer, recognised.page)
+            : recognised.page,
+        );
+      } catch (error) {
+        if (!textLayer) {
+          throw error;
+        }
+        pages.push(textLayer);
+      }
+      await source.onPageSettled?.(pages.length, layerPages.length);
     }
 
     return {
@@ -107,6 +130,22 @@ export class PdfTextExtractor implements TextExtractor {
         confidence: null,
       }),
     };
+  }
+
+  /** Keeps whichever reading scores higher. OCR wins only when it is actually better. */
+  private preferExtraction(
+    textLayer: ExtractedTextPage,
+    ocrPage: ExtractedTextPage,
+  ): ExtractedTextPage {
+    const layerScore = scoreExtractedText(textLayer);
+    const ocrScore = scoreExtractedText(ocrPage);
+    if (ocrScore > layerScore && ocrPage.text.trim().length > 0) {
+      return {
+        ...ocrPage,
+        warnings: [...ocrPage.warnings, ARABIC_LAYER_OCR_PREFERRED],
+      };
+    }
+    return textLayer;
   }
 
   private async recognisePdfPage(

@@ -27,6 +27,8 @@ import {
   aiGuideSummaryNotReady,
 } from './errors/guide.errors';
 import {
+  fallbackGuideTurn,
+  forceDirectGuideAnswer,
   GUIDE_MAX_CLARIFICATIONS,
   parseGuideTurn,
   readStoredGuideTurn,
@@ -259,9 +261,12 @@ export class AiGuideService {
       systemPrompt: LEGAL_GUIDE_SYSTEM_PROMPT,
       userPrompt,
     });
+    const latestUser =
+      [...state.turns].reverse().find((turn) => turn.role === 'USER')?.content ??
+      state.originalQuestion;
     const parsed = parseGuideTurn(first.text, parseContext);
     if (parsed.ok) {
-      return parsed.value;
+      return forceDirectGuideAnswer(parsed.value, latestUser);
     }
     this.logger.warn(`Guide turn rejected reason=${parsed.reason}; retrying once`);
 
@@ -271,10 +276,12 @@ export class AiGuideService {
     });
     const retried = parseGuideTurn(second.text, parseContext);
     if (retried.ok) {
-      return retried.value;
+      return forceDirectGuideAnswer(retried.value, latestUser);
     }
-    this.logger.warn(`Guide turn rejected after retry reason=${retried.reason}`);
-    throw aiGuideFailed();
+    this.logger.warn(
+      `Guide turn rejected after retry reason=${retried.reason}; using Arabic fallback`,
+    );
+    return fallbackGuideTurn(retried.reason);
   }
 
   private mapProviderError(error: unknown): AppError {

@@ -21,6 +21,8 @@ export interface DocumentSource {
   bytes: Buffer;
   mimeType: string;
   languageHints: readonly string[];
+  /** Fired after each PDF page is settled, so long OCR jobs can report progress. */
+  onPageSettled?: (completed: number, total: number) => void | Promise<void>;
 }
 
 /** Why a page carries no usable text layer and still needs recognition. */
