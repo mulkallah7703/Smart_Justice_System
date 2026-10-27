@@ -107,7 +107,12 @@ export class AiAnswerService {
       query: body.query,
       evidence: promptEvidence,
       facts: describeRulingFacts(
-        extractRulingFacts(promptEvidence.map((item) => item.text).join('\n')),
+        extractRulingFacts(
+          promptEvidence
+            .filter((item) => !item.text.includes('ملخص التحليل:'))
+            .map((item) => item.text)
+            .join('\n'),
+        ),
       ),
     });
 

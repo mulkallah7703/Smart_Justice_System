@@ -199,22 +199,7 @@ export class PdfTextExtractor implements TextExtractor {
       }
     }
 
-    let merged = reconcileHeaderDigits(recognised.text, headerText);
-    if (merged.digitsUnverified) {
-      try {
-        const confirm = await this.ocr.recognise({
-          image: await cropHeaderPng(prepared),
-          mimeType: rendered.mimeType,
-          languageHints: source.languageHints,
-          pageNumber,
-          pass: 'header-digits',
-        });
-        merged = reconcileHeaderDigits(recognised.text, headerText, confirm.text);
-      } catch {
-        merged = reconcileHeaderDigits(recognised.text, headerText);
-      }
-    }
-
+    const merged = reconcileHeaderDigits(recognised.text, headerText);
     const warnings = [...recognised.warnings];
     if (merged.digitsUnverified) {
       warnings.push(DIGITS_UNVERIFIED);

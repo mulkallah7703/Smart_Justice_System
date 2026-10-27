@@ -28,51 +28,24 @@ const isDigitPass = (text: string): boolean =>
   /\d/.test(text) && /^[\d\s./-]+$/.test(text);
 
 /**
- * Accepts a header case number or date only when the page body already
- * contains it, or a second header pass repeats it and the body has no
- * different number of the same length. Unconfirmed header-only numbers are
- * not appended and are marked unverified.
+ * A header pass never adds a case number or date. A run is kept only when
+ * the page body already contains it. Any other digit-pass proposal is marked
+ * unverified and left out of the text, even if a second pass repeats it.
  */
 export const reconcileHeaderDigits = (
   pageText: string,
   headerText: string,
-  confirmText?: string,
 ): HeaderDigitMerge => {
   const page = normalizeOcrDigits(pageText);
   const header = normalizeOcrDigits(headerText);
   if (!isDigitPass(header)) {
     return { text: page, digitsUnverified: false };
   }
-  const confirm =
-    confirmText === undefined ? null : normalizeOcrDigits(confirmText);
-  const confirmRuns =
-    confirm !== null && isDigitPass(confirm) ? new Set(digitRuns(confirm)) : null;
-  const pageRuns = digitRuns(page);
-  const accepted: string[] = [];
-  let digitsUnverified = false;
-
-  for (const run of [...new Set(digitRuns(header))]) {
-    if (page.includes(run)) {
-      continue;
-    }
-    const conflicts = pageRuns.some(
-      (existing) => existing.length === run.length && existing !== run,
-    );
-    const confirmed = confirmRuns?.has(run) === true && !conflicts;
-    if (confirmed) {
-      accepted.push(run);
-      continue;
-    }
-    digitsUnverified = true;
-  }
-
-  return {
-    text: accepted.length === 0 ? page : `${page}\n${accepted.join(' ')}`.trim(),
-    digitsUnverified,
-  };
+  const missing = [...new Set(digitRuns(header))].some((run) => !page.includes(run));
+  return { text: page, digitsUnverified: missing };
 };
 
-/** Page text plus confirmed header digits. Unconfirmed numbers are dropped. */
+/** Page body only. Header-only numbers are never appended. */
 export const mergeHeaderReading = (pageText: string, headerText: string): string =>
   reconcileHeaderDigits(pageText, headerText).text;
 

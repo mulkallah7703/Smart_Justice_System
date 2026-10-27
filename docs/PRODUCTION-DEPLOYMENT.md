@@ -41,14 +41,28 @@ cp infra/docker/.env.production.example infra/docker/.env.production
 chmod 600 infra/docker/.env.production
 ```
 
-Required categories:
+Set these in `infra/docker/.env.production` (compose) and keep the same values in `backend/.env.production` if you run the API outside compose. Frontend `VITE_*` values are build args, not runtime env.
 
-- Postgres / Redis / MinIO credentials  
-- `JWT_ACCESS_SECRET`, `CORS_ORIGINS`  
-- `OPENAI_API_KEY`, chat + embedding models  
-- `AI_QDRANT_URL`, `AI_QDRANT_API_KEY`, collection `legal_chunks_v1`  
-- `VITE_API_BASE_URL=https://<your-host>/api/v1`  
-- `NAFATH_MODE=inactive`, `PAYMENT_PROVIDER=deferred`
+| Variable | Production value |
+|----------|------------------|
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Strong password; database name you choose |
+| `DATABASE_URL` | Set by compose: `postgresql://…@postgres:5432/<db>?schema=public` |
+| `REDIS_PASSWORD` | Strong password. Compose builds `REDIS_URL` |
+| `S3_ACCESS_KEY` / `S3_SECRET` / `S3_BUCKET` | MinIO app key, not the root user. Endpoint inside compose is `http://minio:9000` |
+| `JWT_ACCESS_SECRET` | Long random secret |
+| `CORS_ORIGINS` | `https://<your-domain>` |
+| `OPENAI_API_KEY` | Real key. `AI_PROVIDER_MODE=openai`, `AI_LLM_MODE=openai`, `AI_EMBEDDING_MODE=openai` |
+| `AI_QDRANT_URL` / `AI_QDRANT_API_KEY` / `AI_QDRANT_COLLECTION` | Qdrant Cloud URL, key, collection `legal_chunks_v1`. `AI_VECTOR_STORE_MODE=qdrant` |
+| `AI_TEXT_EXTRACTOR_MODE` | `pdf` |
+| `AI_OCR_MODE` | `local` |
+| `AI_OCR_LANG_PATH` | `.ocr-data` (image) or `/app/.ocr-data` (compose worker) |
+| `AI_OCR_TESSDATA` | `fast` (default). `best` stays selectable and is slower without an accuracy gain on the real-document retest |
+| `AI_ADVISOR_EXPERIMENTAL` | `true` (default). Document Q&A stays marked experimental |
+| `VITE_API_MODE` | `real` |
+| `VITE_API_BASE_URL` | `https://<your-domain>/api/v1` |
+| `VITE_AI_ADVISOR_EXPERIMENTAL` | `true` so the static build shows the تجريبي badge |
+| `NAFATH_MODE` | `inactive` — Nafath stays hidden and is not a boot dependency |
+| `PAYMENT_PROVIDER` | `deferred` — payments stay hidden and are not a boot dependency |
 
 See also `backend/.env.production.example` and `frontend/.env.production.example`.
 
@@ -125,6 +139,25 @@ docker compose -f infra/docker/docker-compose.production.yml \
   --env-file infra/docker/.env.production \
   run --rm api npx prisma migrate deploy
 ```
+
+### Seeding
+
+Do not seed production. `npm run seed` / `npx prisma db seed` loads demo users and is for development only. The API entrypoint runs migrations and does not seed.
+
+### Services that must be up
+
+| Service | Role | Production placement |
+|---------|------|----------------------|
+| Postgres 16 | Application data | Compose service `postgres`, private network |
+| Redis | BullMQ and rate limits | Compose service `redis`, private network |
+| S3 (MinIO) | Document bytes | Compose service `minio` plus `minio-init` bucket |
+| Qdrant | Chunk vectors | External Qdrant Cloud (`AI_QDRANT_URL`), not in compose |
+| API | Nest `node dist/main.js` | After migrate deploy |
+| Worker | `node dist/worker.js` | OCR and AI jobs; no public port |
+| Frontend | Static Nginx | Built with the `VITE_*` args above |
+| Edge Nginx | HTTPS | Public 80/443 only. Certificate steps are in `docs/HTTPS.md` |
+
+Point DNS for the app hostname at this host before issuing the certificate. The public origin is `https://<your-domain>`. Nafath and payments have no public screen in this launch: leave `NAFATH_MODE=inactive` and `PAYMENT_PROVIDER=deferred`.
 
 ---
 

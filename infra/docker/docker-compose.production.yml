@@ -211,6 +211,7 @@ services:
       args:
         VITE_API_MODE: real
         VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_AI_ADVISOR_EXPERIMENTAL: ${VITE_AI_ADVISOR_EXPERIMENTAL:-true}
     image: sjs-frontend:${IMAGE_TAG:-local}
     restart: unless-stopped
     networks:

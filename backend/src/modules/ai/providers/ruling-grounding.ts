@@ -147,9 +147,95 @@ export const answerInvertsRuling = (
 
 const unique = (values: string[]): string[] => [...new Set(values)];
 
+export type FinalityStatus = 'final' | 'open' | null;
+
+const HIJRI_MONTHS = [
+  'ربيع الآخر',
+  'ربيع الثاني',
+  'ربيع الأول',
+  'جمادى الآخرة',
+  'جمادى الأولى',
+  'ذو القعدة',
+  'ذو الحجة',
+  'محرم',
+  'صفر',
+  'رجب',
+  'شعبان',
+  'رمضان',
+  'شوال',
+];
+
+/**
+ * Final or appealable only when that phrase is written.
+ * «الحكم غير نهائي» is open and does not match «حكم نهائي».
+ * Silence returns null.
+ */
+export const explicitFinality = (text: string): FinalityStatus => {
+  const folded = fold(text);
+  if (!folded) {
+    return null;
+  }
+  const notFinal = /غير نهائي/u.test(folded) && !/غير قابل/u.test(folded);
+  const closed = /غير قابل ل(لاعتراض|لاستئناف)|حكم نهائي|حكم قطعي/u.test(folded);
+  const open =
+    /حق الاعتراض|يجوز الاعتراض|مهله اعتراض|اعتراض خلال|استئناف خلال|الحكم غير نهائي/u.test(
+      folded,
+    );
+  if (notFinal) {
+    return 'open';
+  }
+  if (closed && !/غير نهائي/u.test(folded)) {
+    return 'final';
+  }
+  if (open) {
+    return 'open';
+  }
+  return null;
+};
+
+const answerClaimsAppealable = (answer: string): boolean => {
+  const folded = fold(answer);
+  if (/غير قابل/u.test(folded)) {
+    return false;
+  }
+  return /ابتدائي|قابل للاعتراض|قابل للاستئناف|يجوز الاعتراض|غير نهائي/u.test(
+    folded,
+  );
+};
+
+const answerClaimsFinal = (answer: string): boolean => {
+  const folded = fold(answer);
+  if (/غير نهائي/u.test(folded) && !/غير قابل/u.test(folded)) {
+    return false;
+  }
+  return /نهائي|قطعي|غير قابل للاعتراض|غير قابل للاستئناف/u.test(folded);
+};
+
+const mentionsAbsentDate = (answer: string, body: string): boolean => {
+  const foldedAnswer = fold(answer);
+  const foldedBody = fold(body);
+  const wrongMonth = HIJRI_MONTHS.some((month) => {
+    const foldedMonth = fold(month);
+    return foldedAnswer.includes(foldedMonth) && !foldedBody.includes(foldedMonth);
+  });
+  if (wrongMonth) {
+    return true;
+  }
+  const asciiAnswer = toAsciiDigits(answer);
+  const asciiBody = toAsciiDigits(body);
+  return (asciiAnswer.match(/\d{1,2}\/\d{1,2}\/\d{3,4}/g) ?? []).some(
+    (date) => !asciiBody.includes(date),
+  );
+};
+
 export const extractRulingFacts = (text: string): RulingFacts => {
-  const ascii = toAsciiDigits(text);
+  const source = text
+    .split('\n')
+    .filter((line) => !line.includes(SUMMARY_MARK))
+    .join('\n');
+  const ascii = toAsciiDigits(source);
   const operative = operativeExcerpt(ascii);
+  const finality = explicitFinality(operative) ?? explicitFinality(ascii);
   const signals = extractLegalSignals(ascii);
   const caseNumbers = unique(
     [...ascii.matchAll(/رقم\s+القضية\s*:?\s*(\d{3,8})/gu)].map((match) => match[1]!),
@@ -166,14 +252,14 @@ export const extractRulingFacts = (text: string): RulingFacts => {
       .map((match) => match[1]!)
       .filter((amount) => !caseNumbers.includes(amount)),
   );
-  const folded = fold(ascii);
   return {
     caseNumbers,
     courts,
     hijriDates: signals.hijriDates.map((value) => toAsciiDigits(value)),
     amounts,
-    objectionDays: detectObjectionDays(ascii),
-    final: /حكم نهائي|حكم قطعي|غير قابل للاعتراض/u.test(folded),
+    objectionDays:
+      finality === 'final' ? null : detectObjectionDays(operative || ascii),
+    final: finality === 'final',
     polarity: rulingPolarity(operative),
     operativeExcerpt: operative,
   };
@@ -185,10 +271,10 @@ export const describeRulingFacts = (facts: RulingFacts): string => {
   if (outcome) {
     lines.push(`النتيجة كما في منطوق الحكم: ${outcome}`);
   }
-  if (facts.objectionDays) {
-    lines.push(`مهلة الاعتراض: ${facts.objectionDays} يوماً`);
-  } else if (facts.final) {
+  if (facts.final) {
     lines.push('الحكم نهائي غير قابل للاعتراض.');
+  } else if (facts.objectionDays) {
+    lines.push(`مهلة الاعتراض: ${facts.objectionDays} يوماً`);
   }
   for (const value of facts.caseNumbers) {
     lines.push(`رقم القضية: ${value}`);
@@ -235,9 +321,14 @@ export const guardGroundedAnswer = (input: {
   insufficientEvidence: boolean;
   evidence: ReadonlyArray<{ evidenceId: string; text: string }>;
 }): GroundedAnswer => {
-  const corpus = input.evidence.map((item) => item.text).join('\n');
+  const bodyEvidence = input.evidence.filter(
+    (item) => !item.text.includes(SUMMARY_MARK),
+  );
+  const corpus = bodyEvidence.map((item) => item.text).join('\n');
   const facts = extractRulingFacts(corpus);
   const polarity = facts.polarity;
+  const finality =
+    explicitFinality(facts.operativeExcerpt) ?? explicitFinality(corpus);
 
   if (answerInvertsRuling(input.answer, polarity)) {
     const sentence = groundedSentence(polarity);
@@ -248,6 +339,24 @@ export const guardGroundedAnswer = (input: {
       return unsure();
     }
     return cited(sentence, support.evidenceId);
+  }
+
+  const appealable = answerClaimsAppealable(input.answer);
+  const statedFinal = answerClaimsFinal(input.answer);
+  if (finality === 'final' && appealable) {
+    const support = bodyEvidence.find(
+      (item) => explicitFinality(item.text) === 'final',
+    );
+    if (!support) {
+      return unsure();
+    }
+    return cited('الحكم نهائي غير قابل للاعتراض.', support.evidenceId);
+  }
+  if (
+    (finality === null && (appealable || statedFinal)) ||
+    (finality === 'open' && statedFinal && !appealable)
+  ) {
+    return unsure();
   }
 
   if (deadlineQuestion(input.query) && facts.objectionDays) {
@@ -264,12 +373,11 @@ export const guardGroundedAnswer = (input: {
     }
   }
 
-  const evidenceDigits = toAsciiDigits(
-    input.evidence
-      .filter((item) => !item.text.includes(SUMMARY_MARK))
-      .map((item) => item.text)
-      .join('\n'),
-  );
+  if (mentionsAbsentDate(input.answer, corpus)) {
+    return unsure();
+  }
+
+  const evidenceDigits = toAsciiDigits(corpus);
   const invented = (toAsciiDigits(input.answer).match(/\d{4,}/g) ?? []).filter(
     (number) => !evidenceDigits.includes(number),
   );

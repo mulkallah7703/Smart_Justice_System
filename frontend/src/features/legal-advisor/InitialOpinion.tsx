@@ -6,6 +6,7 @@ import Button from '../../shared/components/Button';
 import Header from '../../shared/components/Header';
 import ScreenShell from '../../shared/components/ScreenShell';
 
+import AdvisorExperimentalNote from './AdvisorExperimentalNote';
 import FindingCard from './FindingCard';
 import OpinionDisclaimer from './OpinionDisclaimer';
 import { useAdvisorQuestion } from './useAdvisor';
@@ -42,6 +43,7 @@ const InitialOpinion = (): JSX.Element => {
         />
 
         <div className={styles.content}>
+          <AdvisorExperimentalNote />
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>
               {ar.advisor.opinion.readyTitle}

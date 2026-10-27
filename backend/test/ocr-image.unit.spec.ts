@@ -10,19 +10,16 @@ describe('OCR digit merge', () => {
     expect(mergeHeaderReading('القضية 4521', '4521')).toBe('القضية 4521');
   });
 
-  it('does not trust a header-only case number until a second pass agrees', () => {
+  it('does not append a header-only case number even when a second pass would agree', () => {
     const once = reconcileHeaderDigits('رقم القضية غير واضح', '4521\n15/4/1446');
+    expect(once.text).toBe('رقم القضية غير واضح');
     expect(once.text).not.toContain('4521');
+    expect(once.text).not.toContain('15/4/1446');
     expect(once.digitsUnverified).toBe(true);
 
-    const agreed = reconcileHeaderDigits(
-      'رقم القضية غير واضح',
-      '4521\n15/4/1446',
-      '4521 15/4/1446',
-    );
-    expect(agreed.text).toContain('4521');
-    expect(agreed.text).toContain('15/4/1446');
-    expect(agreed.digitsUnverified).toBe(false);
+    const inBody = reconcileHeaderDigits('القضية 4521', '4521');
+    expect(inBody.text).toContain('4521');
+    expect(inBody.digitsUnverified).toBe(false);
   });
 
   it('drops a header number that conflicts with the body', () => {

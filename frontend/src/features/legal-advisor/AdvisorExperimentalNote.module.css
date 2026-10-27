@@ -1,0 +1,38 @@
+.note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-gold-light);
+  border: 1px solid rgba(199, 162, 75, 0.35);
+}
+
+.noteDark {
+  background: rgba(199, 162, 75, 0.16);
+  border-color: rgba(199, 162, 75, 0.45);
+}
+
+.badge {
+  flex-shrink: 0;
+  margin-top: 1px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm, 6px);
+  background: rgba(199, 162, 75, 0.28);
+  color: var(--color-gold);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-semi-bold);
+  line-height: var(--line-height-body);
+}
+
+.disclaimer {
+  margin: 0;
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-body);
+  color: var(--color-text);
+}
+
+.noteDark .disclaimer {
+  color: var(--color-dark-text);
+}

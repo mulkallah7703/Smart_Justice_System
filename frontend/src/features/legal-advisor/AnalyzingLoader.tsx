@@ -3,6 +3,7 @@
 import { ar } from '../../core/i18n/ar';
 import ScreenShell from '../../shared/components/ScreenShell';
 
+import AdvisorExperimentalNote from './AdvisorExperimentalNote';
 import AnalysisOrb from './AnalysisOrb';
 import AnalysisStepCard from './AnalysisStepCard';
 import AnalyzingHeader from './AnalyzingHeader';
@@ -30,6 +31,7 @@ const AnalyzingLoader = (): JSX.Element => {
           <div className={styles.copy}>
             <h2 className={styles.title}>{title}</h2>
             <p className={styles.subtitle}>{subtitle}</p>
+            <AdvisorExperimentalNote tone="dark" />
           </div>
 
           <div

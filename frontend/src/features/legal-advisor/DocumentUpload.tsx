@@ -7,6 +7,7 @@ import FileUploadZone from '../../shared/components/FileUploadZone';
 import Header from '../../shared/components/Header';
 import ScreenShell from '../../shared/components/ScreenShell';
 
+import AdvisorExperimentalNote from './AdvisorExperimentalNote';
 import { useDocumentAnalysis } from './useDocumentAnalysis';
 import styles from './DocumentUpload.module.css';
 
@@ -53,6 +54,8 @@ const DocumentUpload = (): JSX.Element => {
             <h2 className={styles.heroTitle}>{ar.advisor.upload.title}</h2>
             <p className={styles.heroSubtitle}>{ar.advisor.upload.subtitle}</p>
           </div>
+
+          <AdvisorExperimentalNote />
 
           {bannerError ? (
             <p className={styles.errorBanner} role="alert">

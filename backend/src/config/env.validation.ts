@@ -156,10 +156,12 @@ export interface AiConfig {
   ocrLangPath: string;
   /** Tesseract language codes joined with `+`, e.g. `ara+eng`. */
   ocrLanguages: string;
-  /** `best` uses tessdata_best for Arabic. `fast` keeps the smaller models. */
+  /** Default `fast`. `best` selects tessdata_best for Arabic. */
   ocrTessdata: 'best' | 'fast';
   /** Pages rendered at once. OCR itself stays serialized. Capped at 4. */
   ocrConcurrency: number;
+  /** Document advisor is experimental at launch. Default true. */
+  advisorExperimental: boolean;
   /**
    * Maximum UTF-16 length of a DocumentChunk. Soft-breaks prefer paragraphs
    * and newlines; hard splits never cut surrogate pairs. Default 2000.
@@ -372,8 +374,25 @@ const parseS3 = (
   };
 };
 
+const parseOptionalBool = (
+  raw: string | undefined,
+  fallback: boolean,
+): boolean => {
+  const value = raw?.trim().toLowerCase();
+  if (!value) {
+    return fallback;
+  }
+  if (value === 'true' || value === '1') {
+    return true;
+  }
+  if (value === 'false' || value === '0') {
+    return false;
+  }
+  throw new Error('AI_ADVISOR_EXPERIMENTAL must be true or false');
+};
+
 const parseTessdataVariant = (raw: string | undefined): 'best' | 'fast' => {
-  const value = raw?.trim().toLowerCase() || 'best';
+  const value = raw?.trim().toLowerCase() || 'fast';
   if (value !== 'best' && value !== 'fast') {
     throw new Error('AI_OCR_TESSDATA must be best or fast');
   }
@@ -885,6 +904,7 @@ export const parseAi = (env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): AiConfig => {
       2,
       'AI_WORKER_CONCURRENCY',
     ),
+    advisorExperimental: parseOptionalBool(env.AI_ADVISOR_EXPERIMENTAL, true),
   };
 
   if (result.retrievalDefaultLimit > result.retrievalMaxLimit) {

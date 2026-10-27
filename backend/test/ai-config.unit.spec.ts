@@ -158,6 +158,7 @@ describe('AI configuration', () => {
       'jobAttempts',
       'jobBackoffMs',
       'workerConcurrency',
+      'advisorExperimental',
     ]);
   });
 
@@ -234,6 +235,21 @@ describe('document text extraction configuration', () => {
 describe('OCR configuration', () => {
   it('defaults to mock OCR outside production', () => {
     expect(parseAi({}, 'development').ocrMode).toBe('mock');
+  });
+
+  it('defaults tessdata to fast and marks the advisor experimental', () => {
+    const config = parseAi({}, 'development');
+    expect(config.ocrTessdata).toBe('fast');
+    expect(config.advisorExperimental).toBe(true);
+    expect(parseAi({ AI_OCR_TESSDATA: 'best' }, 'development').ocrTessdata).toBe(
+      'best',
+    );
+    expect(
+      parseAi({ AI_ADVISOR_EXPERIMENTAL: 'false' }, 'development').advisorExperimental,
+    ).toBe(false);
+    expect(
+      parseAi({ AI_ADVISOR_EXPERIMENTAL: '0' }, 'development').advisorExperimental,
+    ).toBe(false);
   });
 
   it('selects local OCR only when explicitly configured', () => {

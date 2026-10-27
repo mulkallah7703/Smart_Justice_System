@@ -447,7 +447,10 @@ export class AiRetrievalService {
         where: {
           userId,
           status: 'DONE',
-          documents: { some: { documentId: { in: [...documentIds] } } },
+          documents: {
+            every: { documentId: { in: [...documentIds] } },
+            some: { documentId: { in: [...documentIds] } },
+          },
         },
         orderBy: { completedAt: 'desc' },
         select: { resultJson: true },

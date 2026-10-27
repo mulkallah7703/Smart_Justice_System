@@ -3,6 +3,7 @@
 #   docker build -f infra/docker/frontend.Dockerfile \
 #     --build-arg VITE_API_BASE_URL=https://app.example.com/api/v1 \
 #     --build-arg VITE_API_MODE=real \
+#     --build-arg VITE_AI_ADVISOR_EXPERIMENTAL=true \
 #     -t sjs-frontend:local .
 #
 # Production MUST use VITE_API_MODE=real and a non-localhost API URL.
@@ -18,8 +19,10 @@ COPY frontend/ ./
 
 ARG VITE_API_MODE=real
 ARG VITE_API_BASE_URL
+ARG VITE_AI_ADVISOR_EXPERIMENTAL=true
 ENV VITE_API_MODE=${VITE_API_MODE} \
-    VITE_API_BASE_URL=${VITE_API_BASE_URL}
+    VITE_API_BASE_URL=${VITE_API_BASE_URL} \
+    VITE_AI_ADVISOR_EXPERIMENTAL=${VITE_AI_ADVISOR_EXPERIMENTAL}
 
 RUN if [ -z "${VITE_API_BASE_URL}" ]; then \
       echo "ERROR: VITE_API_BASE_URL build-arg is required for production frontend builds"; \

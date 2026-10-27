@@ -1,11 +1,11 @@
 # Downloads Tesseract traineddata into backend/.ocr-data.
 # Language files are NOT committed to git.
-# AI_OCR_TESSDATA=best (default) fetches tessdata_best for ara.
-# AI_OCR_TESSDATA=fast fetches tessdata_fast for ara. eng stays tessdata_fast.
+# AI_OCR_TESSDATA=fast (default) fetches tessdata_fast for ara.
+# AI_OCR_TESSDATA=best fetches tessdata_best for ara. eng stays tessdata_fast.
 $ErrorActionPreference = 'Stop'
 $dest = Join-Path $PSScriptRoot '..' '.ocr-data'
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
-$variant = if ($env:AI_OCR_TESSDATA) { $env:AI_OCR_TESSDATA.ToLower() } else { 'best' }
+$variant = if ($env:AI_OCR_TESSDATA) { $env:AI_OCR_TESSDATA.ToLower() } else { 'fast' }
 if ($variant -ne 'best' -and $variant -ne 'fast') {
   throw 'AI_OCR_TESSDATA must be best or fast'
 }
