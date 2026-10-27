@@ -197,15 +197,17 @@ describe('production extractor preserves pdf.js output (Option B)', () => {
 
     expect(page.method).toBe('TEXT_LAYER');
     expect(page.warnings).toEqual([PDF_TEXT_VISUAL_ORDER]);
-    expect(page.trust).toBe('REVIEW_REQUIRED');
+    expect(page.trust).toBe('TRUSTED');
     expect(page.text).not.toBe(fixture.expected);
   });
 
-  it('marks Arabic TEXT_LAYER REVIEW_REQUIRED and English TRUSTED', async () => {
+  it('trusts readable Arabic TEXT_LAYER and English TEXT_LAYER', async () => {
     const [arabic] = await extractText(fixtureBytes(ARABIC_ORDER_FIXTURES[0]!));
     const [english] = await extractText(englishPdf());
 
-    expect(arabic.trust).toBe('REVIEW_REQUIRED');
+    expect(arabic.trust).toBe('TRUSTED');
+    expect(arabic.warnings).toContain(PDF_TEXT_VISUAL_ORDER);
     expect(english.trust).toBe('TRUSTED');
+    expect(english.warnings).not.toContain(PDF_TEXT_VISUAL_ORDER);
   });
 });

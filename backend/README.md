@@ -258,8 +258,10 @@ Answer (`POST /ai/advisor/answer`) — validated RAG citations
  ↓
 Frontend AI UI (not implemented)
 
-Arabic TEXT_LAYER and OCR remain `REVIEW_REQUIRED` and are **not** chunked,
-embedded, retrieved, or used as RAG evidence. Chunk text is never rewritten.
+Readable TEXT_LAYER and OCR pages, including Arabic, are `TRUSTED` and are
+chunked, embedded, retrieved, and cited. Garbled extraction and low-confidence
+OCR stay `REVIEW_REQUIRED` and are not used as RAG evidence. Chunk text is
+never rewritten (Arabic visual order is kept; it is not reconstructed).
 Qdrant is a **derived** index; PostgreSQL remains canonical. The LLM is not an
 authority — only validated retrieved evidence may ground answers.
 

@@ -46,9 +46,9 @@ export interface ExtractedTextPage extends ExtractedPageBase {
   confidence: number | null;
   language: string | null;
   /**
-   * Downstream gate. Only `TRUSTED` pages may enter embeddings / future RAG.
-   * Arabic TEXT_LAYER is `REVIEW_REQUIRED` (visual-order Option B). OCR is
-   * `REVIEW_REQUIRED` in C.3.5 and is not authoritative legal text.
+   * Downstream gate. Only `TRUSTED` pages may enter embeddings / RAG.
+   * Readable text-layer and OCR pages are trusted, including Arabic. Garbled
+   * text and low-confidence OCR stay `REVIEW_REQUIRED`.
    */
   trust: ExtractionTrust;
 }

@@ -30,9 +30,10 @@ const RASTER_TYPES: readonly string[] = ['image/png', 'image/jpeg'];
 
 /**
  * Real text-layer extraction with local OCR fallback for pages that have no
- * usable text layer. TEXT_LAYER pages are never re-recognised. Arabic
- * TEXT_LAYER output remains order-unresolved (Option B) and is assigned
- * `REVIEW_REQUIRED`. OCR pages are also `REVIEW_REQUIRED` in C.3.5.
+ * usable text layer. TEXT_LAYER pages are never re-recognised. Arabic text is
+ * kept in pdf.js order (no reconstruction). Trust comes from the text-quality
+ * gate: readable text is `TRUSTED`; garbled text and low-confidence OCR stay
+ * `REVIEW_REQUIRED`.
  */
 @Injectable()
 export class PdfTextExtractor implements TextExtractor {

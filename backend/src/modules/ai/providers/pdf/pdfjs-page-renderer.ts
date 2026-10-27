@@ -8,7 +8,8 @@ import {
   pdfRenderFailed,
   pdfRenderLimitExceeded,
 } from '../../ai.errors';
-import { hasPdfSignature } from './pdf-reader';
+import { NapiCanvasFactory } from './napi-canvas-factory';
+import { hasPdfSignature, pdfJsData } from './pdf-reader';
 import type {
   PdfPageRenderer,
   RenderedPage,
@@ -34,12 +35,12 @@ export class PdfJsPageRenderer implements PdfPageRenderer {
     let document: PDFDocumentProxy;
     try {
       document = await getDocument({
-        data: new Uint8Array(
-          input.bytes.buffer,
-          input.bytes.byteOffset,
-          input.bytes.byteLength,
-        ),
+        data: pdfJsData(input.bytes),
         isEvalSupported: false,
+        // Node's default factory requires the `canvas` package and then draws
+        // those surfaces onto this @napi-rs/canvas context, which rejects them.
+        canvasFactory: new NapiCanvasFactory(),
+        isOffscreenCanvasSupported: false,
         disableFontFace: true,
         useSystemFonts: false,
         verbosity: VerbosityLevel.ERRORS,

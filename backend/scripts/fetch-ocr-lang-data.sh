@@ -13,6 +13,8 @@ for lang in eng ara; do
     continue
   fi
   echo "fetching ${lang}.traineddata"
-  curl -fsSL "${BASE_URL}/${lang}.traineddata" -o "${out}"
+  tmp="${out}.partial"
+  curl -fsSL --retry 5 --retry-delay 2 "${BASE_URL}/${lang}.traineddata" -o "${tmp}"
+  mv "${tmp}" "${out}"
 done
 echo "OCR language data ready in ${DEST}"

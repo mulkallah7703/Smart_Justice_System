@@ -91,6 +91,22 @@ const readPage = async (
 };
 
 /**
+ * A private copy for pdf.js.
+ *
+ * When the view owns its whole ArrayBuffer, pdf.js transfers that buffer to
+ * its worker and detaches it. A view over the caller's Buffer then leaves the
+ * upload empty, and the OCR renderer later reports `PDF_INVALID` (or throws
+ * `Cannot perform Construct on a detached ArrayBuffer`). Pooled buffers smaller
+ * than the Node pool happen to be copied inside pdf.js; file-sized uploads do
+ * not. Always hand pdf.js its own copy.
+ */
+export const pdfJsData = (bytes: Buffer): Uint8Array => {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy;
+};
+
+/**
  * Opens a PDF and returns its text layer, one entry per page, in order.
  *
  * Nothing is rendered: no page is rasterised and no canvas is used, so this
@@ -109,9 +125,7 @@ export const readPdfPages = async (
   let document: PDFDocumentProxy;
   try {
     document = await getDocument({
-      // A view over the existing allocation rather than a copy. Node runs the
-      // parser in-process, so the buffer is not transferred away.
-      data: new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength),
+      data: pdfJsData(bytes),
       isEvalSupported: false,
       disableFontFace: true,
       useSystemFonts: false,

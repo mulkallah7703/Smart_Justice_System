@@ -85,7 +85,7 @@ Compose binds Postgres/Redis/MinIO/Qdrant to `127.0.0.1` only.
 - Live OpenAI not verified without API keys
 - Physical kiosk QR/NFC hardware NOT VERIFIED
 - Judicial Card QR is application opaque token — not an official government credential
-- Arabic TEXT_LAYER / OCR remain `REVIEW_REQUIRED` (fail-closed; not TRUSTED)
+- Readable Arabic TEXT_LAYER / OCR are `TRUSTED` and embedded. Garbled or low-confidence pages stay `REVIEW_REQUIRED`
 
 ## Production blockers
 

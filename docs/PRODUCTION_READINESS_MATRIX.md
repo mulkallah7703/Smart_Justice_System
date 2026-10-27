@@ -14,7 +14,7 @@ Inspected against the live repository on 2026-08-30. Classification uses:
 | Lawyers | REAL + VERIFIED | Availability OK |
 | Consultations | REAL + VERIFIED | Payment deferred |
 | Advisor | MOCK + VERIFIED | Live OpenAI BLOCKED (no keys) |
-| OCR | REAL + VERIFIED | Local; REVIEW_REQUIRED fail-closed |
+| OCR | REAL + VERIFIED | Local ara+eng; readable pages TRUSTED, low-confidence REVIEW_REQUIRED |
 | Embeddings | MOCK + VERIFIED | No OpenAI key in env |
 | Qdrant | REAL + NOT VERIFIED (live AI path) | Infra healthy; AI modes mock |
 | RAG / LLM Answer | MOCK + VERIFIED | |

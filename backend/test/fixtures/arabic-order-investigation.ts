@@ -6,6 +6,7 @@
  */
 import { getDocument, VerbosityLevel } from 'pdfjs-dist';
 
+import { pdfJsData } from '../../src/modules/ai/providers/pdf/pdf-reader';
 import { buildPdf } from './pdf-fixtures';
 
 export interface ArabicFixture {
@@ -81,7 +82,7 @@ export const fixtureBytes = (fixture: ArabicFixture): Buffer => {
 
 export const observePdf = async (bytes: Buffer): Promise<PageObservation[]> => {
   const document = await getDocument({
-    data: new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength),
+    data: pdfJsData(bytes),
     isEvalSupported: false,
     disableFontFace: true,
     useSystemFonts: false,

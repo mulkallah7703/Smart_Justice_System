@@ -17,12 +17,15 @@ RUN npx prisma generate && npm run build \
   && npm prune --omit=dev
 
 FROM node:20-bookworm-slim AS langdata
-WORKDIR /lang
+WORKDIR /opt/ocr
 RUN apt-get update \
   && apt-get install -y --no-install-recommends curl ca-certificates \
-  && rm -rf /var/lib/apt/lists/* \
-  && curl -fsSL -o eng.traineddata https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata \
-  && curl -fsSL -o ara.traineddata https://github.com/tesseract-ocr/tessdata_fast/raw/main/ara.traineddata
+  && rm -rf /var/lib/apt/lists/*
+COPY backend/scripts/fetch-ocr-lang-data.sh ./scripts/fetch-ocr-lang-data.sh
+# Same Linux fetcher as `npm run ocr:langdata`: ara.traineddata + eng.traineddata.
+RUN bash ./scripts/fetch-ocr-lang-data.sh \
+  && test -s .ocr-data/ara.traineddata \
+  && test -s .ocr-data/eng.traineddata
 
 FROM node:20-bookworm-slim AS runtime
 WORKDIR /app
@@ -46,7 +49,7 @@ COPY --from=build --chown=sjs:sjs /app/dist ./dist
 COPY --from=build --chown=sjs:sjs /app/node_modules ./node_modules
 COPY --from=build --chown=sjs:sjs /app/package.json ./package.json
 COPY --from=build --chown=sjs:sjs /app/prisma ./prisma
-COPY --from=langdata --chown=sjs:sjs /lang /app/.ocr-data
+COPY --from=langdata --chown=sjs:sjs /opt/ocr/.ocr-data /app/.ocr-data
 
 USER sjs
 

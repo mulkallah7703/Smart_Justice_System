@@ -20,11 +20,11 @@
  * and AI answers. Until a proven-safe algorithm exists, production code MUST:
  *
  * 1. Return pdf.js text unchanged (aside from the existing minimal normalisation).
- * 2. Attach `PDF_TEXT_VISUAL_ORDER` whenever Arabic script is present on the page.
- * 3. Assign `REVIEW_REQUIRED` trust (never `TRUSTED`) so Arabic TEXT_LAYER cannot
- *    enter embeddings / future RAG until order is resolved.
- * 4. Refuse to treat the text as logical order for persistence, embedding, or
- *    citation until this decision is revisited with a validated approach.
+ * 2. Attach `PDF_TEXT_VISUAL_ORDER` whenever Arabic script is present on the page,
+ *    so callers can see that order was not reconstructed.
+ * 3. Let the text-quality gate decide trust. Readable Arabic (including
+ *    presentation forms and visual order) is eligible for chunking. Garbled
+ *    extraction stays `REVIEW_REQUIRED`. Script identity is not a block.
  *
  * Do not reverse strings, RTL runs, or entire pages here.
  */

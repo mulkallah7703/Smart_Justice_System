@@ -152,7 +152,7 @@ export class AiJobProcessor extends WorkerHost implements OnModuleInit {
 
     return {
       mock: this.llm.name === 'mock',
-      note: 'Page/chunk text lives in Postgres only. Vectors live in Qdrant (derived). Only TRUSTED chunks are embedded. Arabic TEXT_LAYER and OCR remain REVIEW_REQUIRED and are not embedded. Client RAG answers use POST /ai/advisor/answer.',
+      note: 'Page/chunk text lives in Postgres only. Vectors live in Qdrant (derived). Only TRUSTED chunks are embedded. Readable TEXT_LAYER and OCR pages are TRUSTED, including Arabic. Low-quality or low-confidence pages stay REVIEW_REQUIRED and are not embedded. Client RAG answers use POST /ai/advisor/answer.',
       pipelineVersion: AI_PIPELINE_VERSION,
       stages: [...AI_JOB_STAGES],
       documentCount: context.documents.length,

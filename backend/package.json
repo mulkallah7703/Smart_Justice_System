@@ -23,7 +23,7 @@
     "prisma:seed": "prisma db seed",
     "infra:up": "docker compose -f ../infra/docker/docker-compose.dev.yml up -d",
     "infra:down": "docker compose -f ../infra/docker/docker-compose.dev.yml down",
-    "ocr:langdata": "powershell -ExecutionPolicy Bypass -File ./scripts/fetch-ocr-lang-data.ps1",
+    "ocr:langdata": "node ./scripts/fetch-ocr-lang-data.js",
     "test": "jest --config ./test/jest-unit.json",
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "test:live": "jest --config ./test/jest-live.json --runInBand"
