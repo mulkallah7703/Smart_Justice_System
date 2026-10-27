@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  apiBaseToWebSocketUrl,
+  getApiBaseUrl,
   getApiMode,
   isDomainLive,
   isMockApiMode,
@@ -42,5 +44,19 @@ describe('api mode', () => {
     expect(isDomainLive('alerts')).toBe(true);
     expect(isDomainLive('kiosk')).toBe(true);
     expect(isDomainLive('judicial-card')).toBe(true);
+  });
+
+  it('uses VITE_API_URL when VITE_API_BASE_URL is empty', () => {
+    vi.stubEnv('VITE_API_MODE', 'real');
+    vi.stubEnv('VITE_API_BASE_URL', '');
+    vi.stubEnv('VITE_API_URL', 'https://sjs.onrender.com/api/v1/');
+    expect(getApiBaseUrl()).toBe('https://sjs.onrender.com/api/v1');
+    expect(isRealApiMode()).toBe(true);
+  });
+
+  it('derives a secure websocket URL from the Render API base', () => {
+    expect(apiBaseToWebSocketUrl('https://sjs.onrender.com/api/v1')).toBe(
+      'wss://sjs.onrender.com/api/v1/alerts/ws',
+    );
   });
 });

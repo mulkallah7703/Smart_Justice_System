@@ -4,6 +4,8 @@ import type { Duplex } from 'node:stream';
 import { verify } from 'jsonwebtoken';
 import { WebSocket, WebSocketServer } from 'ws';
 
+import { originAllowed } from '../../config/env.validation';
+
 export interface AlertPush {
   alertId: string;
   caseId: string | null;
@@ -35,6 +37,7 @@ export class AlertsGateway implements OnModuleDestroy {
       ) => void;
     },
     accessSecret: string,
+    allowedOrigins?: readonly string[],
   ): void {
     if (this.server) {
       return;
@@ -43,6 +46,17 @@ export class AlertsGateway implements OnModuleDestroy {
     this.upgradeHandler = (request, socket, head) => {
       const url = new URL(request.url ?? '/', 'http://localhost');
       if (url.pathname !== '/api/v1/alerts/ws') {
+        return;
+      }
+      const originHeader = request.headers.origin;
+      const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
+      if (
+        origin &&
+        allowedOrigins &&
+        !originAllowed(origin, allowedOrigins)
+      ) {
+        socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+        socket.destroy();
         return;
       }
       const token = url.searchParams.get('access_token') ?? '';

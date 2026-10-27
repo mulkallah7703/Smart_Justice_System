@@ -1,7 +1,11 @@
 import { useEffect } from 'react';
 
 import { authStore } from '../auth/authStore';
-import { getApiBaseUrl, isMockApiMode } from '../../shared/api/mode';
+import {
+  apiBaseToWebSocketUrl,
+  getApiBaseUrl,
+  isMockApiMode,
+} from '../../shared/api/mode';
 
 export interface AlertSocketMessage {
   alertId: string;
@@ -25,8 +29,7 @@ export const useWebSocket = (
       return undefined;
     }
 
-    const wsBase = base.replace(/^http/i, 'ws');
-    const url = `${wsBase}/alerts/ws?access_token=${encodeURIComponent(token)}`;
+    const url = `${apiBaseToWebSocketUrl(base)}?access_token=${encodeURIComponent(token)}`;
     let socket: WebSocket;
     try {
       socket = new WebSocket(url);

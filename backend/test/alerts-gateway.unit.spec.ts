@@ -57,6 +57,43 @@ describe('AlertsGateway', () => {
     await once(server, 'close');
   });
 
+  it('accepts a browser origin that is on the allow list', async () => {
+    const gateway = new AlertsGateway();
+    const server = createServer();
+    gateway.bind(server, SECRET, ['https://app.vercel.app']);
+    const port = await listen(server);
+    const token = sign({ sub: 'user-1', role: 'CITIZEN' }, SECRET, {
+      algorithm: 'HS256',
+    });
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${port}/api/v1/alerts/ws?access_token=${encodeURIComponent(token)}`,
+      { headers: { Origin: 'https://app.vercel.app' } },
+    );
+    await once(socket, 'open');
+    socket.close();
+    await gateway.onModuleDestroy();
+    server.close();
+    await once(server, 'close');
+  });
+
+  it('rejects a browser origin that is not allowed', async () => {
+    const gateway = new AlertsGateway();
+    const server = createServer();
+    gateway.bind(server, SECRET, ['https://app.vercel.app']);
+    const port = await listen(server);
+    const token = sign({ sub: 'user-1', role: 'CITIZEN' }, SECRET, {
+      algorithm: 'HS256',
+    });
+    const socket = new WebSocket(
+      `ws://127.0.0.1:${port}/api/v1/alerts/ws?access_token=${encodeURIComponent(token)}`,
+      { headers: { Origin: 'https://evil.example' } },
+    );
+    const [error] = (await once(socket, 'error')) as [Error];
+    expect(error.message).toContain('403');
+    await gateway.onModuleDestroy();
+    server.close();
+  });
+
   it('rejects a socket without a valid access token', async () => {
     const gateway = new AlertsGateway();
     const server = createServer();

@@ -1,0 +1,78 @@
+# Free-tier test API. One Render web service.
+# Postgres (Neon), Redis (Upstash), Qdrant Cloud, and R2 stay outside Render.
+# Connect this Blueprint to the branch you deploy (main after merge).
+# Do not also run `node dist/worker.js`: RUN_WORKER_IN_PROCESS starts the consumer here.
+services:
+  - type: web
+    name: sjs-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: NPM_CONFIG_PRODUCTION=false npm ci && DATABASE_URL="${DATABASE_URL:-postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder}" DIRECT_URL="${DIRECT_URL:-${DATABASE_URL:-postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder}}" npx prisma generate && npm run build && npm run ocr:langdata
+    startCommand: sh scripts/render-start.sh
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RUN_WORKER_IN_PROCESS
+        value: "true"
+      - key: TRUST_PROXY_HOPS
+        value: "1"
+      - key: NAFATH_MODE
+        value: inactive
+      - key: PAYMENT_PROVIDER
+        value: deferred
+      - key: AI_PROVIDER_MODE
+        value: openai
+      - key: AI_LLM_MODE
+        value: openai
+      - key: AI_EMBEDDING_MODE
+        value: openai
+      - key: AI_VECTOR_STORE_MODE
+        value: qdrant
+      - key: AI_TEXT_EXTRACTOR_MODE
+        value: pdf
+      - key: AI_OCR_MODE
+        value: local
+      - key: AI_OCR_TESSDATA
+        value: fast
+      - key: AI_OCR_LANG_PATH
+        value: .ocr-data
+      - key: AI_OCR_LANGUAGES
+        value: ara+eng
+      - key: AI_ADVISOR_EXPERIMENTAL
+        value: "true"
+      - key: AI_QDRANT_COLLECTION
+        value: legal_chunks_v1
+      - key: S3_REGION
+        value: auto
+      - key: LOG_LEVEL
+        value: info
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AI_QDRANT_URL
+        sync: false
+      - key: AI_QDRANT_API_KEY
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET
+        sync: false
+      - key: S3_BUCKET
+        sync: false

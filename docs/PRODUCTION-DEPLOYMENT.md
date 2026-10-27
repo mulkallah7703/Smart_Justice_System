@@ -8,6 +8,89 @@ Commands match this repository. Replace hostnames and secrets; never commit secr
 
 Operator steps for 11 October 2026: `docs/LAUNCH-CHECKLIST.md`.
 
+The rest of this file is the Docker Compose VPS path. The free-tier test path is the next section and is also written, with the same variables, in `docs/LAUNCH-CHECKLIST.md`.
+
+---
+
+## Free-tier test deployment
+
+Frontend on Vercel. API on one Render free web service. Data stores stay outside both:
+
+| Piece | Where | What the app reads |
+|-------|--------|--------------------|
+| SPA | Vercel | `VITE_API_MODE`, `VITE_API_URL` or `VITE_API_BASE_URL`, `VITE_AI_ADVISOR_EXPERIMENTAL` |
+| HTTP API + BullMQ worker | Render free web (`render.yaml`) | `RUN_WORKER_IN_PROCESS=true` so this process also runs the worker |
+| Postgres | Neon | `DATABASE_URL` pooled (`-pooler`), `DIRECT_URL` direct host |
+| Redis | Upstash | `REDIS_URL` `rediss://` |
+| Vectors | Qdrant Cloud free | `AI_QDRANT_URL`, `AI_QDRANT_API_KEY` |
+| Document bytes | Cloudflare R2 | `S3_ENDPOINT`, `S3_REGION=auto`, path-style forced in code |
+
+Prisma is **5.22.0**. Start runs `npx prisma migrate deploy` (not `db push`) and does not seed. Nafath stays `inactive`. Payments stay `deferred`. The advisor stays experimental.
+
+### Exact setup
+
+1. Neon: create a project. `DATABASE_URL` is the pooled string (host contains `-pooler`, `sslmode=require`; keep `pgbouncer=true` on this URL only if Neon included it). `DIRECT_URL` is the direct string (same user and database, host without `-pooler`, `sslmode=require`). Prisma Client uses `DATABASE_URL`. Migrate uses `DIRECT_URL`.
+2. Upstash: create Redis and copy the `rediss://default:…@….upstash.io:6379` URL into `REDIS_URL`. The BullMQ connection sets `maxRetriesPerRequest: null`, enables TLS for `rediss`, and sets `enableReadyCheck: false`. Rate limiting uses a different client.
+3. Qdrant Cloud: create a free cluster. Set `AI_QDRANT_URL` to the cluster HTTPS URL, `AI_QDRANT_API_KEY` to the key, `AI_QDRANT_COLLECTION=legal_chunks_v1`.
+4. R2: create bucket `sjs-documents` and an access key. `S3_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com`, `S3_REGION=auto`, `S3_ACCESS_KEY`, `S3_SECRET`, `S3_BUCKET`. The client always uses path-style addressing, which R2 and MinIO both require.
+5. Render: New → Blueprint from `render.yaml` (one `web` service, `plan: free`, `runtime: node`, `region: oregon`, `rootDir: backend`). Connect it to the branch you deploy (`autoDeployTrigger: commit` follows that branch). Health check path is `/health`. Do not point the probe at `/health/ready` (that route may return 503). Do not set `PORT`.
+6. Build on Render: `NPM_CONFIG_PRODUCTION=false npm ci` so the Prisma CLI (a devDependency) is installed, then `prisma generate`, `npm run build`, and `npm run ocr:langdata` (fast tessdata into `.ocr-data`). Start: `sh scripts/render-start.sh`, which exports `DIRECT_URL=$DATABASE_URL` when `DIRECT_URL` is empty, runs `npx prisma migrate deploy`, then `exec node dist/main.js`. With `RUN_WORKER_IN_PROCESS=true` the process then starts a second Nest context for the BullMQ worker. Leave the separate `node dist/worker.js` process off.
+7. Vercel: import the repo. Root Directory `frontend` uses `frontend/vercel.json` (Vite, rewrite `/(.*)` → `/index.html`). Root Directory `.` uses the repo `vercel.json` (`npm ci --prefix frontend`, output `frontend/dist`, same rewrite). Set the build env below and redeploy after any change. Vercel serves existing files before the rewrite.
+8. `CORS_ORIGINS` is the exact Vercel origin, for example `https://your-project.vercel.app`. Add `https://*.vercel.app` only when preview deployments should call the API. Never `*`. The socket URL is derived in the browser: `https://<service>.onrender.com/api/v1` becomes `wss://<service>.onrender.com/api/v1/alerts/ws`. Upgrade requests with an `Origin` must match `CORS_ORIGINS`.
+9. Session token stays in `localStorage` and is sent as `Authorization: Bearer`. `fetch` uses `credentials: 'include'`. In production, `Set-Cookie` is rewritten to `SameSite=None; Secure` so a cookie set by `onrender.com` can be stored by a `vercel.app` page. Helmet sends `Cross-Origin-Resource-Policy: cross-origin`.
+
+Free Render limits: sleep after about 15 minutes idle, no custom domain, 512 MB RAM (OCR can be tight), ephemeral disk (tessdata is fetched on each build).
+
+### Render environment
+
+| Variable | Value |
+|----------|--------|
+| `NODE_ENV` | `production` |
+| `RUN_WORKER_IN_PROCESS` | `true` on this single service. `false` when a separate worker process is running |
+| `TRUST_PROXY_HOPS` | `1` |
+| `NAFATH_MODE` | `inactive` |
+| `PAYMENT_PROVIDER` | `deferred` |
+| `AI_PROVIDER_MODE` | `openai` |
+| `AI_LLM_MODE` | `openai` |
+| `AI_EMBEDDING_MODE` | `openai` |
+| `AI_VECTOR_STORE_MODE` | `qdrant` |
+| `AI_TEXT_EXTRACTOR_MODE` | `pdf` |
+| `AI_OCR_MODE` | `local` |
+| `AI_OCR_TESSDATA` | `fast` |
+| `AI_OCR_LANG_PATH` | `.ocr-data` |
+| `AI_OCR_LANGUAGES` | `ara+eng` |
+| `AI_ADVISOR_EXPERIMENTAL` | `true` |
+| `AI_QDRANT_COLLECTION` | `legal_chunks_v1` |
+| `S3_REGION` | `auto` |
+| `LOG_LEVEL` | `info` |
+| `JWT_ACCESS_EXPIRES_IN` | `15m` |
+| `DATABASE_URL` | Neon pooled URL |
+| `DIRECT_URL` | Neon direct URL |
+| `REDIS_URL` | Upstash `rediss://` URL |
+| `CORS_ORIGINS` | `https://<project>.vercel.app` and optionally `https://*.vercel.app` |
+| `JWT_ACCESS_SECRET` | Long random secret |
+| `OPENAI_API_KEY` | OpenAI secret |
+| `AI_QDRANT_URL` | Qdrant Cloud URL |
+| `AI_QDRANT_API_KEY` | Qdrant Cloud key |
+| `S3_ENDPOINT` | `https://<accountid>.r2.cloudflarestorage.com` |
+| `S3_ACCESS_KEY` | R2 access key id |
+| `S3_SECRET` | R2 secret |
+| `S3_BUCKET` | R2 bucket |
+| `PORT` | Set by Render. Do not override |
+
+`PAYMENT_WEBHOOK_SECRET` is unused while payment is deferred.
+
+### Vercel environment
+
+| Variable | Value |
+|----------|--------|
+| `VITE_API_MODE` | `real` |
+| `VITE_API_URL` | `https://<service>.onrender.com/api/v1` |
+| `VITE_API_BASE_URL` | Same URL, or empty when `VITE_API_URL` is set |
+| `VITE_AI_ADVISOR_EXPERIMENTAL` | `true` |
+
+Smoke: `curl -fsS https://<service>.onrender.com/health`, then sign in on the Vercel URL and confirm the browser calls that `/api/v1` base with no CORS error.
+
 ---
 
 ## 1. Server requirements

@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsString } from 'class-validator';
 import { ValidationPipe } from '@nestjs/common';
 
-import { validateEnv } from '../src/config/env.validation';
+import { originAllowed, validateEnv } from '../src/config/env.validation';
 import { wrapError, wrapSuccess } from '../src/shared/http/envelope';
 import { validationPipeOptions } from '../src/shared/validation/validation.config';
 
@@ -35,6 +35,62 @@ describe('env validation', () => {
     expect(config.nafath.mode).toBe('mock');
     expect(config.nafath.mockCode).toBe(72);
     expect(config.s3).toBeNull();
+    expect(config.runWorkerInProcess).toBe(false);
+    expect(config.directDatabaseUrl).toBe(validEnv.DATABASE_URL);
+    expect(config.redisUrl).toBe('redis://localhost:6379');
+  });
+
+  it('runs the worker in process only when the flag is true', () => {
+    const config = validateEnv({
+      ...validEnv,
+      RUN_WORKER_IN_PROCESS: 'true',
+    });
+    expect(config.runWorkerInProcess).toBe(true);
+  });
+
+  it('keeps a separate direct database URL for migrations', () => {
+    const direct =
+      'postgresql://sjs:sjs@ep-direct.eu-central-1.aws.neon.tech/sjs_dev?sslmode=require';
+    const config = validateEnv({
+      ...validEnv,
+      DIRECT_URL: direct,
+    });
+    expect(config.databaseUrl).toBe(validEnv.DATABASE_URL);
+    expect(config.directDatabaseUrl).toBe(direct);
+  });
+
+  it('accepts an Upstash rediss URL', () => {
+    const config = validateEnv({
+      ...validEnv,
+      REDIS_URL: 'rediss://default:secret@example.upstash.io:6379',
+    });
+    expect(config.redisUrl).toBe(
+      'rediss://default:secret@example.upstash.io:6379',
+    );
+  });
+
+  it('rejects a Redis URL that is not redis or rediss', () => {
+    expect(() =>
+      validateEnv({
+        ...validEnv,
+        REDIS_URL: 'http://localhost:6379',
+      }),
+    ).toThrow(/REDIS_URL/);
+  });
+
+  it('matches a Vercel preview host and rejects other hosts', () => {
+    expect(
+      originAllowed('https://sjs-abc.vercel.app', ['https://*.vercel.app']),
+    ).toBe(true);
+    expect(
+      originAllowed('https://app.vercel.app', ['https://app.vercel.app']),
+    ).toBe(true);
+    expect(originAllowed('https://evil.example', ['https://*.vercel.app'])).toBe(
+      false,
+    );
+    expect(
+      originAllowed('https://app.vercel.app/extra', ['https://*.vercel.app']),
+    ).toBe(false);
   });
 
   it('rejects NODE_ENV=production with NAFATH_MODE=mock', () => {
@@ -82,6 +138,24 @@ describe('env validation', () => {
     expect(config.nafath.mode).toBe('inactive');
     expect(config.payments.provider).toBe('deferred');
     expect(config.ai.providerMode).toBe('openai');
+    expect(config.s3?.forcePathStyle).toBe(true);
+    expect(config.s3?.region).toBe('us-east-1');
+  });
+
+  it('keeps an explicit object-storage region such as R2 auto', () => {
+    const config = validateEnv({
+      ...validEnv,
+      S3_ENDPOINT: 'https://account.r2.cloudflarestorage.com',
+      S3_ACCESS_KEY: 'r2-key',
+      S3_SECRET: 'r2-secret',
+      S3_BUCKET: 'sjs-documents',
+      S3_REGION: 'auto',
+    });
+    expect(config.s3).toMatchObject({
+      region: 'auto',
+      forcePathStyle: true,
+      endpoint: 'https://account.r2.cloudflarestorage.com',
+    });
   });
 
   it('fails fast when DATABASE_URL is missing', () => {

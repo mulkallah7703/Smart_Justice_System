@@ -8,6 +8,8 @@ export interface S3Config {
   secret: string;
   bucket: string;
   region: string;
+  /** R2 and MinIO are path-style. The client always sends path-style requests. */
+  forcePathStyle: true;
 }
 
 export interface JwtConfig {
@@ -250,7 +252,14 @@ export interface AppConfig {
    */
   trustProxyHops: number;
   databaseUrl: string;
+  /** Direct Postgres URL for Prisma Migrate. Falls back to `databaseUrl` when unset. */
+  directDatabaseUrl: string;
   redisUrl: string;
+  /**
+   * When true, the API process also starts the BullMQ consumer.
+   * Leave false when a separate `node dist/worker.js` process is running.
+   */
+  runWorkerInProcess: boolean;
   s3: S3Config | null;
   jwt: JwtConfig;
   nafath: NafathConfig;
@@ -321,18 +330,44 @@ const parseCorsOrigins = (raw: string): string[] => {
     throw new Error('CORS_ORIGINS must contain at least one origin');
   }
 
-  if (origins.includes('*')) {
+  if (origins.some((origin) => origin === '*')) {
     throw new Error('CORS_ORIGINS must not include "*"');
   }
 
   return origins;
 };
 
-const parseDatabaseUrl = (raw: string): string => {
+/**
+ * Exact origins, or a host wildcard such as `https://*.vercel.app`.
+ * A bare `*` is rejected by `parseCorsOrigins`.
+ */
+export const originAllowed = (
+  origin: string,
+  allowed: readonly string[],
+): boolean =>
+  allowed.some((entry) => {
+    if (!entry.includes('*')) {
+      return entry === origin;
+    }
+    const pattern = `^${entry
+      .replace(/[.+?^${}()|[\]\\*]/g, '\\$&')
+      .replace(/\\\*/g, '[^/]*')}$`;
+    return new RegExp(pattern).test(origin);
+  });
+
+const parseDatabaseUrl = (raw: string, key = 'DATABASE_URL'): string => {
   if (!raw.startsWith('postgresql://') && !raw.startsWith('postgres://')) {
     throw new Error(
-      'DATABASE_URL must be a PostgreSQL connection string (postgresql:// or postgres://)',
+      `${key} must be a PostgreSQL connection string (postgresql:// or postgres://)`,
     );
+  }
+  return raw;
+};
+
+/** `redis://` for local Redis, `rediss://` for Upstash TLS. */
+const parseRedisUrl = (raw: string): string => {
+  if (!raw.startsWith('redis://') && !raw.startsWith('rediss://')) {
+    throw new Error('REDIS_URL must start with redis:// or rediss://');
   }
   return raw;
 };
@@ -371,12 +406,14 @@ const parseS3 = (
     secret: secret as string,
     bucket: bucket as string,
     region: env.S3_REGION?.trim() || 'us-east-1',
+    forcePathStyle: true,
   };
 };
 
 const parseOptionalBool = (
   raw: string | undefined,
   fallback: boolean,
+  key: string,
 ): boolean => {
   const value = raw?.trim().toLowerCase();
   if (!value) {
@@ -388,7 +425,7 @@ const parseOptionalBool = (
   if (value === 'false' || value === '0') {
     return false;
   }
-  throw new Error('AI_ADVISOR_EXPERIMENTAL must be true or false');
+  throw new Error(`${key} must be true or false`);
 };
 
 const parseTessdataVariant = (raw: string | undefined): 'best' | 'fast' => {
@@ -904,7 +941,11 @@ export const parseAi = (env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): AiConfig => {
       2,
       'AI_WORKER_CONCURRENCY',
     ),
-    advisorExperimental: parseOptionalBool(env.AI_ADVISOR_EXPERIMENTAL, true),
+    advisorExperimental: parseOptionalBool(
+      env.AI_ADVISOR_EXPERIMENTAL,
+      true,
+      'AI_ADVISOR_EXPERIMENTAL',
+    ),
   };
 
   if (result.retrievalDefaultLimit > result.retrievalMaxLimit) {
@@ -1023,7 +1064,16 @@ export const validateEnv = (
       'TRUST_PROXY_HOPS',
     ),
     databaseUrl: parseDatabaseUrl(requireString(env, 'DATABASE_URL')),
-    redisUrl: requireString(env, 'REDIS_URL'),
+    directDatabaseUrl: parseDatabaseUrl(
+      env.DIRECT_URL?.trim() || requireString(env, 'DATABASE_URL'),
+      'DIRECT_URL',
+    ),
+    redisUrl: parseRedisUrl(requireString(env, 'REDIS_URL')),
+    runWorkerInProcess: parseOptionalBool(
+      env.RUN_WORKER_IN_PROCESS,
+      false,
+      'RUN_WORKER_IN_PROCESS',
+    ),
     s3: parseS3(env, nodeEnvRaw),
     jwt: parseJwt(env),
     nafath: parseNafath(env, nodeEnvRaw),

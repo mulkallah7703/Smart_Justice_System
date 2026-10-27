@@ -87,6 +87,7 @@ const performRequest = async <T>(
       method: options.method ?? 'GET',
       headers,
       body: buildRequestBody(options.body),
+      credentials: 'include',
       signal: controller.signal,
     });
 

@@ -2,6 +2,8 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL?: string;
+  /** Alias of `VITE_API_BASE_URL`, used by the Vercel project env. */
+  readonly VITE_API_URL?: string;
   readonly VITE_AI_ADVISOR_EXPERIMENTAL?: string;
 }
 
