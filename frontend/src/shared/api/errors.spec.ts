@@ -49,6 +49,21 @@ describe('case error mapping', () => {
       getUserFacingCaseError(new ApiError('AUTH_UNAUTHORIZED', 'x', 401)),
     ).toBe(ar.nafath.errors.unauthorized);
   });
+
+  it('maps CASE_FORBIDDEN and does not fall back to not-found for unknown errors', () => {
+    expect(
+      getUserFacingCaseError(new ApiError('CASE_FORBIDDEN', 'Only a citizen can create a case', 403)),
+    ).toBe(ar.legalFile.createCase.forbidden);
+    expect(
+      getUserFacingCaseError(new ApiError('INTERNAL_ERROR', 'boom', 500)),
+    ).toBe(ar.legalFile.createCase.generic);
+    expect(
+      getUserFacingCaseError(new ApiError('INTERNAL_ERROR', 'boom', 500)),
+    ).not.toBe(ar.legalFile.notFound.title);
+    expect(getUserFacingCaseError(new Error('nope'))).toBe(
+      ar.legalFile.createCase.generic,
+    );
+  });
 });
 
 describe('document error mapping', () => {

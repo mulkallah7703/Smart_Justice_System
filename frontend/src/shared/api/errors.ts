@@ -32,10 +32,13 @@ const AUTH_MESSAGES: Record<string, string> = {
 
 const CASE_MESSAGES: Record<string, string> = {
   CASE_NOT_FOUND: ar.legalFile.notFound.title,
+  CASE_FORBIDDEN: ar.legalFile.createCase.forbidden,
   CASE_RATE_LIMITED: ar.legalFile.createCase.rateLimited,
   VALIDATION_ERROR: ar.legalFile.createCase.validation,
   AUTH_UNAUTHORIZED: ar.nafath.errors.unauthorized,
   AUTH_INVALID_TOKEN: ar.nafath.errors.invalidToken,
+  TIMEOUT: ar.legalFile.createCase.generic,
+  NETWORK_ERROR: ar.legalFile.createCase.generic,
 };
 
 const DOCUMENT_MESSAGES: Record<string, string> = {
@@ -161,7 +164,7 @@ export const getUserFacingCaseError = (error: unknown): string => {
     return CASE_MESSAGES[error.code];
   }
 
-  return ar.legalFile.notFound.title;
+  return ar.legalFile.createCase.generic;
 };
 
 const ADVISOR_MESSAGES: Record<string, string> = {
