@@ -14,6 +14,7 @@ out/
 !**/.env.example
 !**/.env.*.example
 !infra/docker/.env.production.example
+!infra/docker/.env.hostinger.example
 
 # Logs & caches
 *.log

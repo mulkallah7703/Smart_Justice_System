@@ -1,5 +1,7 @@
 # Production backup and restore
 
+> **Hostinger co-tenancy (`pjsr`):** Do **not** run the `docker-compose.production.yml` / `sjs-prod` commands below on the shared Hostinger VPS. Use [`docs/HOSTINGER-BACKUP-RESTORE.md`](./HOSTINGER-BACKUP-RESTORE.md) (`-p pjsr`, volumes `pjsr_*`).
+
 **Authoritative data**
 
 | Store | Role |
